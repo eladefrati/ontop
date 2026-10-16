@@ -48,3 +48,7 @@ macOS asks you to re-confirm Screen Recording access about once a month.
 - macOS 26 or later
 - Xcode 26 command line tools (Swift 6)
 - Permissions on first use: Screen Recording and Accessibility
+
+## License
+
+MIT, see [LICENSE](LICENSE).
