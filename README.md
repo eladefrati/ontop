@@ -29,6 +29,16 @@ in the [ADRs](docs/adr/).
     make log       # stream the app's log
     make install   # copy to /Applications
 
+Signing: the Makefile signs with the first "Apple Development" certificate in your keychain
+and falls back to an ad-hoc signature with a warning. Both run fine on the Mac that built
+them. With an ad-hoc signature macOS treats every rebuild as a new app, so the two
+permissions have to be granted again after each build. A free Apple Development certificate
+avoids that: in Xcode, Settings > Accounts, add your Apple ID, select the Personal Team,
+Manage Certificates, then + > Apple Development. No paid program needed.
+
+Copies of the built app do not pass Gatekeeper on other Macs, since nothing here is
+notarized; the recipient has to right-click the app and choose Open once.
+
 ## Use
 
 - Click the pin in the menu bar and pick a window, or press Ctrl+Option+P while the window
@@ -52,3 +62,5 @@ macOS asks you to re-confirm Screen Recording access about once a month.
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+Built with Claude Code.
