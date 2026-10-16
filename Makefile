@@ -4,6 +4,7 @@ CONFIG        ?= release
 BUILD         := build
 BIN           := .build/$(CONFIG)/$(APP)
 APPDIR        := $(BUILD)/$(APP).app
+ICON          := $(BUILD)/AppIcon.icns
 # First Apple Development identity in the keychain; override with SIGN_IDENTITY=... if needed.
 SIGN_IDENTITY ?= $(shell security find-identity -v -p codesigning | awk -F'"' '/Apple Development/{print $$2; exit}')
 
@@ -12,11 +13,18 @@ SIGN_IDENTITY ?= $(shell security find-identity -v -p codesigning | awk -F'"' '/
 build:
 	swift build -c $(CONFIG)
 
-app: build
+$(ICON): tools/make-icon.swift
+	mkdir -p $(BUILD)
+	rm -rf $(BUILD)/AppIcon.iconset
+	swift tools/make-icon.swift $(BUILD)/AppIcon.iconset
+	iconutil -c icns -o $(ICON) $(BUILD)/AppIcon.iconset
+
+app: build $(ICON)
 	rm -rf $(APPDIR)
 	mkdir -p $(APPDIR)/Contents/MacOS $(APPDIR)/Contents/Resources
 	cp $(BIN) $(APPDIR)/Contents/MacOS/$(APP)
 	cp Resources/Info.plist $(APPDIR)/Contents/Info.plist
+	cp $(ICON) $(APPDIR)/Contents/Resources/AppIcon.icns
 	@if [ -n "$(SIGN_IDENTITY)" ]; then \
 	  codesign --force --options runtime --sign "$(SIGN_IDENTITY)" $(APPDIR); \
 	else \
