@@ -41,7 +41,7 @@ final class HotKey {
         switch status {
         case noErr:
             hotKeyRef = ref
-            Log.app.info("hotkey registered: \(chord.display, privacy: .public)")
+            Log.app.info("hotkey registered: \(chord.display)")
         case OSStatus(eventHotKeyExistsErr):
             throw .inUse
         default:

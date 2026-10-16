@@ -18,7 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             try hotKey.register(Settings.chord)
         } catch {
-            Log.app.error("hotkey \(Settings.chord.display, privacy: .public) unavailable: \(String(describing: error), privacy: .public)")
+            Log.app.error("hotkey \(Settings.chord.display) unavailable: \(String(describing: error))")
         }
         self.manager = manager
         self.hotKey = hotKey

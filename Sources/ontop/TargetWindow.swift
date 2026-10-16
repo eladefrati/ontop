@@ -93,7 +93,7 @@ final class TargetWindow {
                      kAXWindowMiniaturizedNotification, kAXUIElementDestroyedNotification] {
             let result = AXObserverAddNotification(observer, element, name as CFString, refcon)
             if result != .success {
-                Log.target.error("AXObserverAddNotification \(name, privacy: .public) failed: \(result.rawValue)")
+                Log.target.error("AXObserverAddNotification \(name) failed: \(result.rawValue)")
             }
         }
         // Focus changes are reported on the app, not the window.
@@ -114,7 +114,7 @@ final class TargetWindow {
         case kAXFocusedWindowChangedNotification:
             onFocusChanged?()
         case kAXWindowMiniaturizedNotification, kAXUIElementDestroyedNotification:
-            Log.target.info("target gone: \(notification, privacy: .public)")
+            Log.target.info("target gone: \(notification)")
             onGone?()
         default:
             break

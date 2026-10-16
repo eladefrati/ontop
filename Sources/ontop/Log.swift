@@ -1,8 +1,8 @@
 import os
 
-/// Log interpolations of window titles, frames and errors are marked `privacy: .public` so
-/// they are readable in `make log` during development. TODO: drop the `privacy: .public`
-/// arguments (back to the redacting default) when development is done.
+/// Interpolated values use the unified logging default, which redacts them as <private>.
+/// For a readable `make log` during debugging, add `privacy: .public` to the
+/// interpolations you need and revert before committing.
 enum Log {
     static let subsystem = "io.github.eladefrati.ontop"
     static let app = Logger(subsystem: subsystem, category: "app")

@@ -55,11 +55,11 @@ final class PinManager {
                 self?.onChange?()
             }
             pins[id] = pin
-            Log.app.info("pinned \(window.title ?? "", privacy: .public) (\(id))")
+            Log.app.info("pinned \(window.title ?? "") (\(id))")
             pin.evaluate(frontmostPID: lastFrontmostPID)
             onChange?()
         } catch {
-            Log.app.error("shareable content: \(error.localizedDescription, privacy: .public)")
+            Log.app.error("shareable content: \(error.localizedDescription)")
         }
     }
 

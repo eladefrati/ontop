@@ -37,7 +37,7 @@ final class WindowCapture: NSObject {
         do {
             try await stream.stopCapture()
         } catch {
-            Log.capture.error("stopCapture: \(error.localizedDescription, privacy: .public)")
+            Log.capture.error("stopCapture: \(error.localizedDescription)")
         }
         lastBuffer = nil
         Log.capture.info("stopped for window \(self.window.windowID)")
@@ -48,7 +48,7 @@ final class WindowCapture: NSObject {
         do {
             try await stream.updateConfiguration(Self.configuration(pointSize: pointSize, scale: scale))
         } catch {
-            Log.capture.error("updateConfiguration: \(error.localizedDescription, privacy: .public)")
+            Log.capture.error("updateConfiguration: \(error.localizedDescription)")
         }
     }
 
@@ -90,7 +90,7 @@ extension WindowCapture: SCStreamOutput, SCStreamDelegate {
     }
 
     nonisolated func stream(_ stream: SCStream, didStopWithError error: Error) {
-        Log.capture.error("stream stopped: \(error.localizedDescription, privacy: .public)")
+        Log.capture.error("stream stopped: \(error.localizedDescription)")
         // Only the identity is needed on the main actor, not the object itself.
         let stopped = ObjectIdentifier(stream)
         DispatchQueue.main.async {

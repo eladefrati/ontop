@@ -56,10 +56,10 @@ final class Pin: NSObject, NSWindowDelegate {
             do {
                 try await capture.start(pointSize: frame.size, scale: scale)
             } catch {
-                Log.capture.error("start: \(error.localizedDescription, privacy: .public)")
+                Log.capture.error("start: \(error.localizedDescription)")
             }
         }
-        Log.mirror.info("shown at \(frame.debugDescription, privacy: .public)")
+        Log.mirror.info("shown at \(frame.debugDescription)")
     }
 
     func hide() {
@@ -92,7 +92,7 @@ final class Pin: NSObject, NSWindowDelegate {
             do {
                 try await capture.start(pointSize: size, scale: scale)
             } catch {
-                Log.capture.error("restart: \(error.localizedDescription, privacy: .public)")
+                Log.capture.error("restart: \(error.localizedDescription)")
             }
         }
     }
@@ -126,7 +126,7 @@ final class Pin: NSObject, NSWindowDelegate {
     /// click at the same screen point so it lands in the real window.
     private func clicked(at point: CGPoint) {
         let cgPoint = Geometry.cgPoint(fromAppKit: point)
-        Log.mirror.info("click at \(cgPoint.debugDescription, privacy: .public), forwarding")
+        Log.mirror.info("click at \(cgPoint.debugDescription), forwarding")
         hide()
         target.raise()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {

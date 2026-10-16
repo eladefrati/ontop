@@ -108,7 +108,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
                 try SMAppService.mainApp.register()
             }
         } catch {
-            Log.app.error("launch at login: \(error.localizedDescription, privacy: .public)")
+            Log.app.error("launch at login: \(error.localizedDescription)")
             Self.alert("Could not change Launch at Login", error.localizedDescription)
         }
     }

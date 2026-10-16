@@ -22,10 +22,6 @@ in the [ADRs](docs/adr/).
   untested on hardware, as is the restart path: a display sleep and wake did not stop the
   stream.
 
-Development note: log lines currently print window titles and frames in the clear
-(`privacy: .public` in `Sources/ontop/Log.swift` users). Switch back to the redacting default
-before calling this done.
-
 ## Build
 
     make app       # build, bundle and sign build/ontop.app

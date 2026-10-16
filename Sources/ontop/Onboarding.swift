@@ -49,7 +49,7 @@ enum Onboarding {
         configuration.createsNewApplicationInstance = true
         NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, error in
             if let error {
-                Log.app.error("relaunch failed: \(error.localizedDescription, privacy: .public)")
+                Log.app.error("relaunch failed: \(error.localizedDescription)")
             }
             DispatchQueue.main.async { NSApp.terminate(nil) }
         }
