@@ -21,6 +21,21 @@ final class PinManager {
             self, selector: #selector(applicationTerminated(_:)),
             name: NSWorkspace.didTerminateApplicationNotification, object: nil
         )
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self, selector: #selector(activeSpaceChanged(_:)),
+            name: NSWorkspace.activeSpaceDidChangeNotification, object: nil
+        )
+    }
+
+    var followsDesktops: Bool {
+        get { Settings.followsDesktops }
+        set {
+            Settings.followsDesktops = newValue
+            for pin in pins.values {
+                pin.setFollowsDesktops(newValue)
+                pin.evaluate(frontmostPID: lastFrontmostPID)
+            }
+        }
     }
 
     func isPinned(_ id: CGWindowID) -> Bool { pins[id] != nil }
@@ -81,6 +96,10 @@ final class PinManager {
         guard pid != ProcessInfo.processInfo.processIdentifier else { return }
         lastFrontmostPID = pid
         for pin in pins.values { pin.evaluate(frontmostPID: pid) }
+    }
+
+    @objc private func activeSpaceChanged(_ note: Notification) {
+        for pin in pins.values { pin.evaluate(frontmostPID: lastFrontmostPID) }
     }
 
     @objc private func applicationTerminated(_ note: Notification) {

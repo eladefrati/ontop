@@ -64,6 +64,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         launch.target = self
         launch.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(launch)
+        let follow = NSMenuItem(title: "Follow Across Desktops", action: #selector(toggleFollowsDesktops), keyEquivalent: "")
+        follow.target = self
+        follow.state = manager.followsDesktops ? .on : .off
+        menu.addItem(follow)
         let shortcut = NSMenuItem(title: "Change Shortcut\u{2026}", action: #selector(changeShortcut), keyEquivalent: "")
         shortcut.target = self
         menu.addItem(shortcut)
@@ -114,6 +118,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             Log.app.error("launch at login: \(error.localizedDescription)")
             Self.alert("Could not change Launch at Login", error.localizedDescription)
         }
+    }
+
+    @objc private func toggleFollowsDesktops() {
+        manager.followsDesktops.toggle()
     }
 
     @objc private func changeShortcut() {

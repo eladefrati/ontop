@@ -9,6 +9,7 @@ final class Pin: NSObject, NSWindowDelegate {
     private let capture: WindowCapture
     private let mirror = MirrorWindow()
     private var shown = false
+    private var awaitingFirstFrame = false
     private var restartAttempts = 0
     private static let maxRestartAttempts = 3
     /// Serializes start, stop and resize so a stop never races a start in flight.
@@ -21,7 +22,17 @@ final class Pin: NSObject, NSWindowDelegate {
         self.capture = WindowCapture(window: target.scWindow)
         super.init()
         mirror.delegate = self
-        capture.onFrame = { [mirror] surface in mirror.display(surface) }
+        // Ordered in now, invisible, so the mirror belongs to the desktop the window is on.
+        mirror.setFrame(Geometry.appKitRect(fromCG: target.frame), display: false)
+        mirror.orderFrontRegardless()
+        capture.onFrame = { [weak self] surface in
+            guard let self else { return }
+            self.mirror.display(surface)
+            if self.awaitingFirstFrame {
+                self.awaitingFirstFrame = false
+                self.mirror.setVisible(true)
+            }
+        }
         capture.onStopped = { [weak self] _ in self?.restartAfterStop() }
         mirror.onClick = { [weak self] point in self?.clicked(at: point) }
         target.onFrameChanged = { [weak self] frame in self?.frameChanged(frame) }
@@ -35,22 +46,29 @@ final class Pin: NSObject, NSWindowDelegate {
     }
 
     /// Hidden while the real window is what the user sees: its app is frontmost and it is
-    /// that app's focused window. Shown otherwise.
+    /// that app's focused window. Also hidden while the mirror's desktop is not the active
+    /// one, since nobody could see it and the stream would run for nothing. Shown otherwise.
     func evaluate(frontmostPID: pid_t?) {
         if frontmostPID == target.pid && target.isFocusedInApp {
+            hide()
+        } else if !mirror.isOnActiveSpace {
             hide()
         } else {
             show()
         }
     }
 
+    func setFollowsDesktops(_ follows: Bool) {
+        mirror.setFollowsDesktops(follows)
+    }
+
     func show() {
         guard !shown else { return }
         shown = true
         let frame = Geometry.appKitRect(fromCG: target.frame)
-        mirror.clear()
         mirror.setFrame(frame, display: false)
         mirror.orderFrontRegardless()
+        awaitingFirstFrame = true
         let scale = mirror.backingScaleFactor
         enqueue { [capture] in
             do {
@@ -65,8 +83,10 @@ final class Pin: NSObject, NSWindowDelegate {
     func hide() {
         guard shown else { return }
         shown = false
+        awaitingFirstFrame = false
         restartAttempts = 0
-        mirror.orderOut(nil)
+        mirror.setVisible(false)
+        mirror.clear()
         enqueue { [capture] in await capture.stop() }
         Log.mirror.info("hidden")
     }
@@ -108,6 +128,7 @@ final class Pin: NSObject, NSWindowDelegate {
 
     func unpin() {
         hide()
+        mirror.orderOut(nil)
         target.invalidate()
     }
 

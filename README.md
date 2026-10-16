@@ -46,6 +46,8 @@ notarized; the recipient has to right-click the app and choose Open once.
 - The pinned window is the real window while you work in it. When another app comes to the
   front, a live mirror of the pinned window appears in its place, above everything. Click
   the mirror and you are back in the real window, with that click delivered.
+- A pinned window stays on the desktop it was pinned on. Turn on "Follow Across Desktops"
+  to see pinned windows on every desktop and over full-screen apps.
 - "Change Shortcut" records a new key combination; "Launch at Login" does what it says.
 - Pins are not remembered across launches.
 
