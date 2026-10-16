@@ -50,8 +50,8 @@ avoids that: in Xcode, Settings > Accounts, add your Apple ID, select the Person
 Manage Certificates, then + > Apple Development. No paid program needed.
 
 Copies of the built app do not pass Gatekeeper on other Macs, since nothing here is
-notarized; the recipient has to allow it once under System Settings > Privacy & Security
-("Open Anyway") after the first blocked launch.
+notarized. After the first blocked launch the recipient has to scroll to the Security
+section of System Settings > Privacy & Security and click "Open Anyway", once.
 
 ## License
 
