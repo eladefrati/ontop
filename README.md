@@ -16,7 +16,11 @@ in the [ADRs](docs/adr/).
   once, mirror hides only while its window is the focused one in the frontmost app.
 - M2 done: global shortcut (default Ctrl+Option+P, changeable from the menu), launch at
   login, permission onboarding that opens the right settings pane and relaunches.
-- M3 next: multi-display, scale factor changes, stream error recovery.
+- M3 done: stream restarts with backoff if the system stops it and unpins after repeated
+  failures; the capture is re-sized when the mirror lands on a display with another scale
+  factor. Multi-display geometry is by construction (one global coordinate flip) and
+  untested on hardware, as is the restart path: a display sleep and wake did not stop the
+  stream.
 
 Development note: log lines currently print window titles and frames in the clear
 (`privacy: .public` in `Sources/ontop/Log.swift` users). Switch back to the redacting default

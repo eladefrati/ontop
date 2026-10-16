@@ -12,6 +12,8 @@ final class WindowCapture: NSObject {
     private var lastBuffer: CMSampleBuffer?
 
     var onFrame: ((IOSurface) -> Void)?
+    /// The system ended the stream on its own, for example on a display change.
+    var onStopped: ((Error) -> Void)?
 
     init(window: SCWindow) {
         self.window = window
@@ -89,5 +91,15 @@ extension WindowCapture: SCStreamOutput, SCStreamDelegate {
 
     nonisolated func stream(_ stream: SCStream, didStopWithError error: Error) {
         Log.capture.error("stream stopped: \(error.localizedDescription, privacy: .public)")
+        // Only the identity is needed on the main actor, not the object itself.
+        let stopped = ObjectIdentifier(stream)
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                guard let current = self.stream, ObjectIdentifier(current) == stopped else { return }
+                self.stream = nil
+                self.lastBuffer = nil
+                self.onStopped?(error)
+            }
+        }
     }
 }

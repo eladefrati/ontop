@@ -4,11 +4,13 @@ import CoreGraphics
 /// One pinned window: shows the mirror while another app is in front, hides it while the
 /// pinned window is frontmost, and hands clicks on the mirror to the real window.
 @MainActor
-final class Pin {
+final class Pin: NSObject, NSWindowDelegate {
     let target: TargetWindow
     private let capture: WindowCapture
     private let mirror = MirrorWindow()
     private var shown = false
+    private var restartAttempts = 0
+    private static let maxRestartAttempts = 3
     /// Serializes start, stop and resize so a stop never races a start in flight.
     private var captureTask: Task<Void, Never>?
 
@@ -17,7 +19,10 @@ final class Pin {
     init(target: TargetWindow) {
         self.target = target
         self.capture = WindowCapture(window: target.scWindow)
+        super.init()
+        mirror.delegate = self
         capture.onFrame = { [mirror] surface in mirror.display(surface) }
+        capture.onStopped = { [weak self] _ in self?.restartAfterStop() }
         mirror.onClick = { [weak self] point in self?.clicked(at: point) }
         target.onFrameChanged = { [weak self] frame in self?.frameChanged(frame) }
         target.onFocusChanged = { [weak self] in
@@ -60,9 +65,45 @@ final class Pin {
     func hide() {
         guard shown else { return }
         shown = false
+        restartAttempts = 0
         mirror.orderOut(nil)
         enqueue { [capture] in await capture.stop() }
         Log.mirror.info("hidden")
+    }
+
+    /// The system stopped the stream while the mirror is shown. Restart with backoff; give
+    /// up and unpin after repeated failures so a dead mirror never sits over the window.
+    private func restartAfterStop() {
+        guard shown else { return }
+        restartAttempts += 1
+        guard restartAttempts <= Self.maxRestartAttempts else {
+            Log.capture.error("stream failed \(self.restartAttempts - 1) times, unpinning")
+            unpin()
+            onGone?()
+            return
+        }
+        let delay = Double(restartAttempts) * 0.5
+        Log.capture.info("restarting stream in \(delay)s (attempt \(self.restartAttempts))")
+        let size = mirror.frame.size
+        let scale = mirror.backingScaleFactor
+        enqueue { [weak self, capture] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard let self, self.shown else { return }
+            do {
+                try await capture.start(pointSize: size, scale: scale)
+            } catch {
+                Log.capture.error("restart: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
+    // The mirror moved to a display with a different scale factor: the stream must deliver
+    // frames at the new pixel size or they come out blurry.
+    func windowDidChangeBackingProperties(_ notification: Notification) {
+        guard shown else { return }
+        let size = mirror.frame.size
+        let scale = mirror.backingScaleFactor
+        enqueue { [capture] in await capture.resize(pointSize: size, scale: scale) }
     }
 
     func unpin() {

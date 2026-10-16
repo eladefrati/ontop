@@ -5,6 +5,8 @@ import AppKit
 /// convert between the two.
 enum Geometry {
     /// Height of the primary display, the one that carries the menu bar and the origin.
+    /// Both coordinate systems are global across displays and differ only in which corner
+    /// of this one display is the origin, so this single flip is right for every display.
     @MainActor
     static var primaryHeight: CGFloat {
         NSScreen.screens.first?.frame.height ?? 0
