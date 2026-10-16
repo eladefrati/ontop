@@ -29,6 +29,20 @@ in the [ADRs](docs/adr/).
     make log       # stream the app's log
     make install   # copy to /Applications
 
+## Use
+
+- Click the pin in the menu bar and pick a window, or press Ctrl+Option+P while the window
+  you want is in front. Pick or press again to unpin. "Unpin All" clears everything.
+- The pinned window is the real window while you work in it. When another app comes to the
+  front, a live mirror of the pinned window appears in its place, above everything. Click
+  the mirror and you are back in the real window, with that click delivered.
+- "Change Shortcut" records a new key combination; "Launch at Login" does what it says.
+- Pins are not remembered across launches.
+
+Limits that follow from the design: the mirror does not take keyboard input, it lags the
+real window by about a frame, and windows an app marks as not capturable cannot be pinned.
+macOS asks you to re-confirm Screen Recording access about once a month.
+
 ## Requirements
 
 - macOS 26 or later
