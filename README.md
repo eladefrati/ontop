@@ -8,36 +8,16 @@ window into a floating overlay while another app is in front, and gets out of th
 moment the pinned window is frontmost. Details in the [proposal](docs/proposal.md); decisions
 in the [ADRs](docs/adr/).
 
-## Status
+## Install
 
-- M0 spike passed 2026-10-16 on macOS 26.3.1: mirror shows and hides with focus, follows
-  move and resize, stays live, and a click on the mirror lands in the real window.
-- M1 done: menu bar window list grouped by app, pin and unpin any window, several pins at
-  once, mirror hides only while its window is the focused one in the frontmost app.
-- M2 done: global shortcut (default Ctrl+Option+P, changeable from the menu), launch at
-  login, permission onboarding that opens the right settings pane and relaunches.
-- M3 done: stream restarts with backoff if the system stops it and unpins after repeated
-  failures; the capture is re-sized when the mirror lands on a display with another scale
-  factor. Multi-display geometry is by construction (one global coordinate flip) and
-  untested on hardware, as is the restart path: a display sleep and wake did not stop the
-  stream.
+Requires macOS 26 and Xcode 26 or its command line tools.
 
-## Build
+    git clone https://github.com/eladefrati/ontop.git
+    cd ontop
+    make install
 
-    make app       # build, bundle and sign build/ontop.app
-    make run       # build and launch
-    make log       # stream the app's log
-    make install   # copy to /Applications
-
-Signing: the Makefile signs with the first "Apple Development" certificate in your keychain
-and falls back to an ad-hoc signature with a warning. Both run fine on the Mac that built
-them. With an ad-hoc signature macOS treats every rebuild as a new app, so the two
-permissions have to be granted again after each build. A free Apple Development certificate
-avoids that: in Xcode, Settings > Accounts, add your Apple ID, select the Personal Team,
-Manage Certificates, then + > Apple Development. No paid program needed.
-
-Copies of the built app do not pass Gatekeeper on other Macs, since nothing here is
-notarized; the recipient has to right-click the app and choose Open once.
+Then open ontop from Applications and grant Accessibility and Screen Recording when asked.
+It runs as a pin icon in the menu bar; there is no Dock icon.
 
 ## Use
 
@@ -55,11 +35,23 @@ Limits that follow from the design: the mirror does not take keyboard input, it 
 real window by about a frame, and windows an app marks as not capturable cannot be pinned.
 macOS asks you to re-confirm Screen Recording access about once a month.
 
-## Requirements
+## Build
 
-- macOS 26 or later
-- Xcode 26 command line tools (Swift 6)
-- Permissions on first use: Screen Recording and Accessibility
+    make app       # build, bundle and sign build/ontop.app
+    make run       # build and launch
+    make log       # stream the app's log
+    make install   # copy to /Applications
+
+Signing: the Makefile signs with the first "Apple Development" certificate in your keychain
+and falls back to an ad-hoc signature with a warning. Both run fine on the Mac that built
+them. With an ad-hoc signature macOS treats every rebuild as a new app, so the two
+permissions have to be granted again after each build. A free Apple Development certificate
+avoids that: in Xcode, Settings > Accounts, add your Apple ID, select the Personal Team,
+Manage Certificates, then + > Apple Development. No paid program needed.
+
+Copies of the built app do not pass Gatekeeper on other Macs, since nothing here is
+notarized; the recipient has to allow it once under System Settings > Privacy & Security
+("Open Anyway") after the first blocked launch.
 
 ## License
 
