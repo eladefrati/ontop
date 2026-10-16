@@ -15,7 +15,16 @@ final class TargetWindow {
     private var observer: AXObserver?
 
     var onFrameChanged: ((CGRect) -> Void)?
+    var onFocusChanged: (() -> Void)?
     var onGone: (() -> Void)?
+
+    /// True when this window is the one its app would show in front: its focused window.
+    var isFocusedInApp: Bool {
+        guard let focused = AX.value(appElement, kAXFocusedWindowAttribute),
+              CFGetTypeID(focused) == AXUIElementGetTypeID()
+        else { return false }
+        return CFEqual(focused, element)
+    }
 
     init?(scWindow: SCWindow) {
         guard let owner = scWindow.owningApplication,
@@ -87,6 +96,11 @@ final class TargetWindow {
                 Log.target.error("AXObserverAddNotification \(name, privacy: .public) failed: \(result.rawValue)")
             }
         }
+        // Focus changes are reported on the app, not the window.
+        let focusResult = AXObserverAddNotification(observer, appElement, kAXFocusedWindowChangedNotification as CFString, refcon)
+        if focusResult != .success {
+            Log.target.error("AXObserverAddNotification focus failed: \(focusResult.rawValue)")
+        }
         CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
         self.observer = observer
     }
@@ -97,6 +111,8 @@ final class TargetWindow {
             guard let frame = AX.frame(of: element) else { return }
             self.frame = frame
             onFrameChanged?(frame)
+        case kAXFocusedWindowChangedNotification:
+            onFocusChanged?()
         case kAXWindowMiniaturizedNotification, kAXUIElementDestroyedNotification:
             Log.target.info("target gone: \(notification, privacy: .public)")
             onGone?()

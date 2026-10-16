@@ -20,9 +20,22 @@ final class Pin {
         capture.onFrame = { [mirror] surface in mirror.display(surface) }
         mirror.onClick = { [weak self] point in self?.clicked(at: point) }
         target.onFrameChanged = { [weak self] frame in self?.frameChanged(frame) }
+        target.onFocusChanged = { [weak self] in
+            self?.evaluate(frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier)
+        }
         target.onGone = { [weak self] in
             self?.unpin()
             self?.onGone?()
+        }
+    }
+
+    /// Hidden while the real window is what the user sees: its app is frontmost and it is
+    /// that app's focused window. Shown otherwise.
+    func evaluate(frontmostPID: pid_t?) {
+        if frontmostPID == target.pid && target.isFocusedInApp {
+            hide()
+        } else {
+            show()
         }
     }
 

@@ -12,7 +12,9 @@ in the [ADRs](docs/adr/).
 
 - M0 spike passed 2026-10-16 on macOS 26.3.1: mirror shows and hides with focus, follows
   move and resize, stays live, and a click on the mirror lands in the real window.
-- M1 in progress: menu bar window list, pin and unpin any window.
+- M1 done: menu bar window list grouped by app, pin and unpin any window, several pins at
+  once, mirror hides only while its window is the focused one in the frontmost app.
+- M2 in progress: global hotkey, launch at login, permission onboarding.
 
 Development note: log lines currently print window titles and frames in the clear
 (`privacy: .public` in `Sources/ontop/Log.swift` users). Switch back to the redacting default
