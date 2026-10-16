@@ -88,6 +88,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func pinFrontmost() {
+        // The shortcut shown on this item is also the global hot key, which fires for the
+        // same press; let the hot key handle keyboard activation so the pin toggles once.
+        guard NSApp.currentEvent?.type != .keyDown else { return }
         manager.pinFrontmostWindow()
     }
 
