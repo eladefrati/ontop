@@ -1,17 +1,20 @@
 import AppKit
+import ServiceManagement
 
 /// The menu bar item and its menu: pinned state per window, grouped by app.
 @MainActor
 final class StatusMenu: NSObject, NSMenuDelegate {
     private let manager: PinManager
+    private let hotKey: HotKey
     private let item: NSStatusItem
     private let menu = NSMenu()
+    private var recorder: ChordRecorderWindow?
 
-    init(manager: PinManager) {
+    init(manager: PinManager, hotKey: HotKey) {
         self.manager = manager
+        self.hotKey = hotKey
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
-        item.button?.image = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: "ontop")
         menu.delegate = self
         menu.autoenablesItems = false
         item.menu = menu
@@ -23,7 +26,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        let pinFront = NSMenuItem(title: "Pin Frontmost Window", action: #selector(pinFrontmost), keyEquivalent: "")
+        let chord = Settings.chord
+        let pinFront = NSMenuItem(title: "Pin Frontmost Window", action: #selector(pinFrontmost), keyEquivalent: chord.keyEquivalent)
+        pinFront.keyEquivalentModifierMask = chord.flags
         pinFront.target = self
         menu.addItem(pinFront)
         menu.addItem(.separator())
@@ -53,6 +58,15 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         unpinAll.target = self
         unpinAll.isEnabled = !manager.pins.isEmpty
         menu.addItem(unpinAll)
+        menu.addItem(.separator())
+
+        let launch = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        launch.target = self
+        launch.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        menu.addItem(launch)
+        let shortcut = NSMenuItem(title: "Change Shortcut\u{2026}", action: #selector(changeShortcut), keyEquivalent: "")
+        shortcut.target = self
+        menu.addItem(shortcut)
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit ontop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
     }
@@ -84,5 +98,47 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func unpinAll() {
         manager.unpinAll()
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        do {
+            if SMAppService.mainApp.status == .enabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+        } catch {
+            Log.app.error("launch at login: \(error.localizedDescription, privacy: .public)")
+            Self.alert("Could not change Launch at Login", error.localizedDescription)
+        }
+    }
+
+    @objc private func changeShortcut() {
+        let window = ChordRecorderWindow(current: Settings.chord)
+        recorder = window
+        window.present { [weak self] chord in
+            guard let self else { return }
+            self.recorder = nil
+            guard let chord, chord != Settings.chord else { return }
+            let previous = Settings.chord
+            do {
+                try self.hotKey.register(chord)
+                Settings.chord = chord
+            } catch HotKey.RegistrationError.inUse {
+                try? self.hotKey.register(previous)
+                Self.alert("Shortcut in use", "\(chord.display) is already taken by another app. The shortcut stays \(previous.display).")
+            } catch {
+                try? self.hotKey.register(previous)
+                Self.alert("Could not set shortcut", String(describing: error))
+            }
+        }
+    }
+
+    private static func alert(_ title: String, _ text: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = text
+        NSApp.activate()
+        alert.runModal()
     }
 }

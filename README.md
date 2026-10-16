@@ -14,7 +14,9 @@ in the [ADRs](docs/adr/).
   move and resize, stays live, and a click on the mirror lands in the real window.
 - M1 done: menu bar window list grouped by app, pin and unpin any window, several pins at
   once, mirror hides only while its window is the focused one in the frontmost app.
-- M2 in progress: global hotkey, launch at login, permission onboarding.
+- M2 done: global shortcut (default Ctrl+Option+P, changeable from the menu), launch at
+  login, permission onboarding that opens the right settings pane and relaunches.
+- M3 next: multi-display, scale factor changes, stream error recovery.
 
 Development note: log lines currently print window titles and frames in the clear
 (`privacy: .public` in `Sources/ontop/Log.swift` users). Switch back to the redacting default
