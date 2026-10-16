@@ -72,6 +72,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         shortcut.target = self
         menu.addItem(shortcut)
         menu.addItem(.separator())
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+        let about = NSMenuItem(title: "ontop \(version)", action: nil, keyEquivalent: "")
+        about.isEnabled = false
+        menu.addItem(about)
         menu.addItem(withTitle: "Quit ontop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
     }
 
