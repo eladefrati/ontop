@@ -8,6 +8,11 @@ let package = Package(
         .executableTarget(
             name: "ontop",
             path: "Sources/ontop"
-        )
+        ),
+        .testTarget(
+            name: "ontopTests",
+            dependencies: ["ontop"],
+            path: "Tests/ontopTests"
+        ),
     ]
 )

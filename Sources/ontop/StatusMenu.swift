@@ -80,7 +80,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     /// Apps in order of their frontmost window; windows in front-to-back order within each.
-    private static func groupedByApp(_ windows: [WindowInfo]) -> [(String, [WindowInfo])] {
+    static func groupedByApp(_ windows: [WindowInfo]) -> [(String, [WindowInfo])] {
         var order: [String] = []
         var groups: [String: [WindowInfo]] = [:]
         for window in windows {

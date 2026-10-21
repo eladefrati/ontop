@@ -10,7 +10,7 @@ ICON          := $(BUILD)/AppIcon.icns
 SIGN_IDENTITY ?= $(shell security find-identity -v -p codesigning | awk '/Apple Development/{print $$2; exit}')
 
 .DEFAULT_GOAL := app
-.PHONY: build app install uninstall run stop log clean
+.PHONY: build app install uninstall run stop test log clean
 
 build:
 	swift build -c $(CONFIG)
@@ -51,6 +51,9 @@ run: app stop
 
 stop:
 	-pkill -x $(APP)
+
+test:
+	swift test
 
 log:
 	/usr/bin/log stream --level debug --style compact --predicate 'subsystem == "$(BUNDLE_ID)"'

@@ -13,7 +13,7 @@ enum Geometry {
     }
 
     @MainActor
-    static func appKitRect(fromCG rect: CGRect) -> CGRect {
+    static func appKitRect(fromCG rect: CGRect, primaryHeight: CGFloat = Geometry.primaryHeight) -> CGRect {
         CGRect(
             x: rect.origin.x,
             y: primaryHeight - rect.origin.y - rect.height,
