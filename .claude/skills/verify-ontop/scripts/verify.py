@@ -558,15 +558,22 @@ def f_desktops(run, t):
     run.capture(F, a, "mirror-a-away-following")
 
     # Follow off again, from the away desktop: each mirror should return to its own desktop.
+    # The window server keeps reporting an ordered-out window's last desktop, so A's
+    # placement is judged by on-screen state: off screen here, on screen and shown at home.
     run.menu(F, "click", pid, "Follow Across Desktops")
     time.sleep(0.5)
     ms = report_mirrors(run, F, "follow off again, away")
-    run.check(F, "after Follow off, mirror A is back on the home desktop only", desktop_of(ms[a]) == [home],
-              f"{desktop_of(ms[a])}")
+    run.check(F, "after Follow off, mirror A is not on screen on the away desktop", a in ms and not ms[a]["onscreen"],
+              a in ms and f"on {desktop_of(ms[a])}, onscreen {ms[a]['onscreen']}")
     run.check(F, "after Follow off, mirror B is on the away desktop only", b and desktop_of(ms[b]) == [away],
               b and f"{desktop_of(ms[b])}")
     switch(run, F, back_dir)
-    report_mirrors(run, F, "follow off again, home")
+    run.raise_cover(F)
+    time.sleep(0.5)
+    ms = report_mirrors(run, F, "follow off again, home")
+    run.check(F, "back home, mirror A is shown on the home desktop", run.shown(ms.get(a)) and desktop_of(ms[a]) == [home],
+              a in ms and f"on {desktop_of(ms[a])}, alpha {ms[a]['alpha']}, onscreen {ms[a]['onscreen']}")
+    run.check(F, "back home, mirror B is not on screen", b and not ms[b]["onscreen"])
     run.unpin_all(F)
 
 

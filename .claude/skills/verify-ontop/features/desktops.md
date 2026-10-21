@@ -28,12 +28,14 @@ Preconditions:
 - **Pin B away.** Open `ontop-verify-b.txt` (it opens on the active desktop), raise it, `probe hotkey`. Mirror B on [away].
 - **Home.** `probe space left`. A shown; B off screen. Capture A.
 - **Follow on.** `probe menu click <pid> "Follow Across Desktops"`; it shows checked. Both mirrors report every desktop. Away: A on screen and shown (B is the focused TextEdit window, A is not). Capture A there.
-- **Follow off, from away.** Choose it again. Expected: A on [home], B on [away].
+- **Follow off, from away.** Choose it again. Expected: A off screen there, B on [away].
+- **Home after Follow off.** `probe space` back, raise the cover. Expected: A on screen on [home] and shown; B off screen.
 - **Reports.** The driver prints a line per step, e.g. `follow off, away: active desktop 4; mirror 395079 on [3] (alpha 0, onscreen False)`, and records it in `steps.jsonl` as `mirror desktops`.
 
 ## Gotchas
 
-- 2026-10-21, four runs: turning Follow off while on another desktop moves every mirror to the active desktop (A reported on [4], not its home [3]); back home, A is off screen and its window has no mirror there. The check "after Follow off, mirror A is back on the home desktop only" fails; that is the app's behaviour, not the journey's. Inference: removing `.canJoinAllSpaces` leaves a window on the current Space; the app does not re-order it onto its window's desktop.
+- 2026-10-21, four runs: turning Follow off while on another desktop moves every mirror to the active desktop (A reported on [4], not its home [3]); back home, A is off screen and its window has no mirror there. The checks "after Follow off, mirror A is not on screen on the away desktop" and "back home, mirror A is shown on the home desktop" fail; that is the app's behaviour, not the journey's. Inference: removing `.canJoinAllSpaces` leaves a window on the current Space; the app does not re-order it onto its window's desktop.
+- The window server keeps reporting an ordered-out window's last desktop, so a mirror that is not on any desktop still reports one. The Follow-off checks judge mirror A by its on-screen state, away and then at home, not by its desktop list.
 - Desktops are numbered 1.. in Mission Control order on the main display; the probe reads them with private SkyLight calls (verification only).
 - Raising a window on another desktop makes macOS switch to that desktop. The journey switches first and raises only windows on the active desktop.
 - A sticky (following) window's space list comes back in varying order; compare as sets.
