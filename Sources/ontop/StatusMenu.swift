@@ -56,7 +56,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         let unpinAll = NSMenuItem(title: "Unpin All", action: #selector(unpinAll), keyEquivalent: "")
         unpinAll.target = self
-        unpinAll.isEnabled = !manager.pins.isEmpty
+        unpinAll.isEnabled = manager.hasPins
         menu.addItem(unpinAll)
         menu.addItem(.separator())
 
@@ -91,7 +91,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     private func updateIcon() {
-        let name = manager.pins.isEmpty ? "pin" : "pin.fill"
+        let name = manager.hasPins ? "pin.fill" : "pin"
         item.button?.image = NSImage(systemSymbolName: name, accessibilityDescription: "ontop")
     }
 

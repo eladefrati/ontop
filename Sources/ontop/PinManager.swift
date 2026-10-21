@@ -4,7 +4,7 @@ import ScreenCaptureKit
 /// Owns every pin and decides, on each focus change, which mirrors are shown.
 @MainActor
 final class PinManager {
-    private(set) var pins: [CGWindowID: Pin] = [:]
+    private var slots = PinSlots<Pin>()
     /// The last app other than ontop that was frontmost. Used when the user picks "pin
     /// frontmost window" from our own menu, which may have activated ontop.
     private(set) var lastFrontmostPID: pid_t?
@@ -31,17 +31,22 @@ final class PinManager {
         get { Settings.followsDesktops }
         set {
             Settings.followsDesktops = newValue
-            for pin in pins.values {
+            for pin in slots.values {
                 pin.setFollowsDesktops(newValue)
                 pin.evaluate(frontmostPID: lastFrontmostPID)
             }
         }
     }
 
-    func isPinned(_ id: CGWindowID) -> Bool { pins[id] != nil }
+    var hasPins: Bool { !slots.isEmpty }
+
+    func isPinned(_ id: CGWindowID) -> Bool { slots.contains(id) }
 
     func toggle(_ id: CGWindowID) {
-        if isPinned(id) { unpin(id) } else { Task { await pin(id) } }
+        switch slots.toggle(id) {
+        case .resolve(let ticket): Task { await pin(ticket) }
+        case .unpinned(let pin): unpinned(pin)
+        }
     }
 
     func pinFrontmostWindow() {
@@ -52,8 +57,9 @@ final class PinManager {
         toggle(window.id)
     }
 
-    func pin(_ id: CGWindowID) async {
-        guard pins[id] == nil else { return }
+    private func pin(_ ticket: PinSlots<Pin>.Ticket) async {
+        let id = ticket.windowID
+        guard slots.isCurrent(ticket) else { return }
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
             guard let window = content.windows.first(where: { $0.windowID == id }) else {
@@ -66,10 +72,10 @@ final class PinManager {
             }
             let pin = Pin(target: target)
             pin.onGone = { [weak self] in
-                self?.pins[id] = nil
+                _ = self?.slots.remove(id)
                 self?.onChange?()
             }
-            pins[id] = pin
+            slots.store(pin, for: ticket)
             Log.app.info("pinned \(window.title ?? "") (\(id))")
             pin.evaluate(frontmostPID: lastFrontmostPID)
             onChange?()
@@ -79,14 +85,18 @@ final class PinManager {
     }
 
     func unpin(_ id: CGWindowID) {
-        guard let pin = pins.removeValue(forKey: id) else { return }
-        pin.unpin()
-        Log.app.info("unpinned \(id)")
-        onChange?()
+        guard let pin = slots.remove(id) else { return }
+        unpinned(pin)
     }
 
     func unpinAll() {
-        for id in Array(pins.keys) { unpin(id) }
+        for pin in slots.removeAll() { unpinned(pin) }
+    }
+
+    private func unpinned(_ pin: Pin) {
+        pin.unpin()
+        Log.app.info("unpinned \(pin.target.scWindow.windowID)")
+        onChange?()
     }
 
     @objc private func applicationActivated(_ note: Notification) {
@@ -95,15 +105,15 @@ final class PinManager {
         // ontop taking focus (its own menu) changes nothing about what the user is looking at.
         guard pid != ProcessInfo.processInfo.processIdentifier else { return }
         lastFrontmostPID = pid
-        for pin in pins.values { pin.evaluate(frontmostPID: pid) }
+        for pin in slots.values { pin.evaluate(frontmostPID: pid) }
     }
 
     @objc private func activeSpaceChanged(_ note: Notification) {
-        for pin in pins.values { pin.evaluate(frontmostPID: lastFrontmostPID) }
+        for pin in slots.values { pin.evaluate(frontmostPID: lastFrontmostPID) }
     }
 
     @objc private func applicationTerminated(_ note: Notification) {
         guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
-        for (id, pin) in pins where pin.target.pid == app.processIdentifier { unpin(id) }
+        for id in slots.ids(where: { $0.target.pid == app.processIdentifier }) { unpin(id) }
     }
 }
