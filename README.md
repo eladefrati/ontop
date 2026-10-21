@@ -26,13 +26,16 @@ It runs as a pin icon in the menu bar; there is no Dock icon.
 - The pinned window is the real window while you work in it. When another app comes to the
   front, a live mirror of the pinned window appears in its place, above everything. Click
   the mirror and you are back in the real window, with that click delivered.
+- With several windows pinned, the one you are working in is an ordinary window, so the
+  other pins stay above it. Avoid overlapping two pins.
 - A pinned window stays on the desktop it was pinned on. Turn on "Follow Across Desktops"
   to see pinned windows on every desktop and over full-screen apps.
 - "Change Shortcut" records a new key combination; "Launch at Login" does what it says.
 - Pins are not remembered across launches.
 
-Limits that follow from the design: the mirror does not take keyboard input, it lags the
-real window by about a frame, and windows an app marks as not capturable cannot be pinned.
+Limits that follow from the design: the mirror does not take keyboard input or scrolling, it
+lags the real window by about a frame, and windows an app marks as not capturable cannot be
+pinned.
 macOS asks you to re-confirm Screen Recording access about once a month.
 
 ## Build
