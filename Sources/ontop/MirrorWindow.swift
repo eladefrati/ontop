@@ -9,7 +9,6 @@ final class MirrorWindow: NSWindow {
     init() {
         super.init(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
         level = .floating
-        sharingType = .none
         alphaValue = 0
         ignoresMouseEvents = true
         setFollowsDesktops(Settings.followsDesktops)
