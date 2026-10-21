@@ -1,18 +1,30 @@
 import AppKit
 import ScreenCaptureKit
 
+/// What every pin reads to show its mirror. Built only by PinManager.
+struct PinContext {
+    /// The app the user is looking at; never ontop itself.
+    var frontmostPID: pid_t?
+}
+
 /// Owns every pin and decides, on each focus change, which mirrors are shown.
 @MainActor
 final class PinManager {
     private var slots = PinSlots<Pin>()
-    /// The last app other than ontop that was frontmost. Used when the user picks "pin
-    /// frontmost window" from our own menu, which may have activated ontop.
-    private(set) var lastFrontmostPID: pid_t?
+    /// The last app other than ontop that was frontmost. The only frontmost source: the
+    /// hotkey and "Pin Frontmost Window" (which may have activated ontop) find their window
+    /// with it, and every pin reads it through `context`.
+    private var frontmostPID: pid_t?
 
     var onChange: (() -> Void)?
 
     init() {
-        lastFrontmostPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        // An accessory app never owns the menu bar, so if ontop is frontmost at launch the
+        // menu bar's owner is the app the user was in.
+        let own = ProcessInfo.processInfo.processIdentifier
+        frontmostPID = [NSWorkspace.shared.frontmostApplication, NSWorkspace.shared.menuBarOwningApplication]
+            .compactMap { $0?.processIdentifier }
+            .first { $0 != own }
         NSWorkspace.shared.notificationCenter.addObserver(
             self, selector: #selector(applicationActivated(_:)),
             name: NSWorkspace.didActivateApplicationNotification, object: nil
@@ -33,7 +45,7 @@ final class PinManager {
             Settings.followsDesktops = newValue
             for pin in slots.values {
                 pin.setFollowsDesktops(newValue)
-                pin.evaluate(frontmostPID: lastFrontmostPID)
+                pin.evaluate()
             }
         }
     }
@@ -54,7 +66,7 @@ final class PinManager {
     }
 
     func pinFrontmostWindow() {
-        guard let pid = lastFrontmostPID, let window = WindowList.frontWindow(ofPID: pid) else {
+        guard let pid = frontmostPID, let window = WindowList.frontWindow(ofPID: pid) else {
             Log.app.info("no frontmost window to pin")
             return
         }
@@ -81,7 +93,7 @@ final class PinManager {
         }
         slots.store(pin, for: ticket)
         Log.app.info("pinned \(pin.target.scWindow.title ?? "") (\(id))")
-        pin.evaluate(frontmostPID: lastFrontmostPID)
+        pin.evaluate()
         onChange?()
     }
 
@@ -94,12 +106,18 @@ final class PinManager {
             Log.app.error("could not track window \(id)")
             return nil
         }
-        return Pin(target: target, onEnd: { [weak self] reason in self?.remove(id, reason) })
+        return Pin(target: target,
+                   context: { [unowned self] in context },
+                   onEnd: { [weak self] reason in self?.remove(id, reason) })
     }
 
     func unpinAll() {
         for pin in slots.removeAll() { finish(pin, .user) }
         onChange?()
+    }
+
+    private var context: PinContext {
+        PinContext(frontmostPID: frontmostPID)
     }
 
     /// A pin asked to end, or its app quit.
@@ -126,12 +144,12 @@ final class PinManager {
         let pid = app.processIdentifier
         // ontop taking focus (its own menu) changes nothing about what the user is looking at.
         guard pid != ProcessInfo.processInfo.processIdentifier else { return }
-        lastFrontmostPID = pid
-        for pin in slots.values { pin.evaluate(frontmostPID: pid) }
+        frontmostPID = pid
+        for pin in slots.values { pin.evaluate() }
     }
 
     @objc private func activeSpaceChanged(_ note: Notification) {
-        for pin in slots.values { pin.evaluate(frontmostPID: lastFrontmostPID) }
+        for pin in slots.values { pin.evaluate() }
     }
 
     @objc private func applicationTerminated(_ note: Notification) {

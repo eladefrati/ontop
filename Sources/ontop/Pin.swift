@@ -17,12 +17,14 @@ final class Pin: NSObject, NSWindowDelegate {
     private static let maxRestartAttempts = 3
     /// Serializes start, stop and resize so a stop never races a start in flight.
     private var captureTask: Task<Void, Never>?
+    private let context: () -> PinContext
     /// Asks the manager to end this pin. A pin never ends itself.
     private let onEnd: (EndReason) -> Void
 
-    init(target: TargetWindow, onEnd: @escaping (EndReason) -> Void) {
+    init(target: TargetWindow, context: @escaping () -> PinContext, onEnd: @escaping (EndReason) -> Void) {
         self.target = target
         self.capture = WindowCapture(window: target.scWindow)
+        self.context = context
         self.onEnd = onEnd
         super.init()
         mirror.delegate = self
@@ -40,22 +42,18 @@ final class Pin: NSObject, NSWindowDelegate {
         capture.onStopped = { [weak self] in self?.restartAfterStop() }
         mirror.onClick = { [weak self] point in self?.clicked(at: point) }
         target.onFrameChanged = { [weak self] frame in self?.frameChanged(frame) }
-        target.onFocusChanged = { [weak self] in
-            self?.evaluate(frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier)
-        }
+        target.onFocusChanged = { [weak self] in self?.evaluate() }
         target.onGone = { [weak self] in self?.onEnd(.windowGone) }
     }
 
-    /// Hidden while the real window is what the user sees: its app is frontmost and it is
-    /// that app's focused window. Also hidden while the mirror's desktop is not the active
-    /// one, since nobody could see it and the stream would run for nothing. Shown otherwise.
-    func evaluate(frontmostPID: pid_t?) {
-        if frontmostPID == target.pid && target.isFocusedInApp {
-            hide()
-        } else if !mirror.isOnActiveSpace {
-            hide()
-        } else {
+    /// Shows or hides the mirror by MirrorVisibility. The manager calls it on every
+    /// activation, desktop switch and Follow change; the pin itself on focus changes.
+    func evaluate() {
+        let realWindowInFront = context().frontmostPID == target.pid && target.isFocusedInApp
+        if MirrorVisibility.wanted(realWindowInFront: realWindowInFront, onActiveDesktop: mirror.isOnActiveSpace) {
             show()
+        } else {
+            hide()
         }
     }
 
