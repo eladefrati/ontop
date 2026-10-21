@@ -1,5 +1,4 @@
 import AppKit
-import CoreGraphics
 
 /// One pinned window: shows the mirror while another app is in front, hides it while the
 /// pinned window is frontmost, and hands clicks on the mirror to the real window.
@@ -33,7 +32,7 @@ final class Pin: NSObject, NSWindowDelegate {
                 self.mirror.setVisible(true)
             }
         }
-        capture.onStopped = { [weak self] _ in self?.restartAfterStop() }
+        capture.onStopped = { [weak self] in self?.restartAfterStop() }
         mirror.onClick = { [weak self] point in self?.clicked(at: point) }
         target.onFrameChanged = { [weak self] frame in self?.frameChanged(frame) }
         target.onFocusChanged = { [weak self] in

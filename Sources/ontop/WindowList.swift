@@ -1,9 +1,7 @@
 import AppKit
-import ApplicationServices
-import CoreGraphics
 
 /// A window the user can pin, as the menu lists it.
-struct WindowInfo: Hashable {
+struct WindowInfo {
     let id: CGWindowID
     let pid: pid_t
     let appName: String

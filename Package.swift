@@ -7,11 +7,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "ontop",
-            path: "Sources/ontop",
-            linkerSettings: [
-                .linkedFramework("Carbon"),
-                .linkedFramework("ScreenCaptureKit"),
-            ]
+            path: "Sources/ontop"
         )
     ]
 )

@@ -1,5 +1,4 @@
 import AppKit
-import ApplicationServices
 import ScreenCaptureKit
 
 /// The real window being pinned: its process, its Accessibility element, and observers that

@@ -1,5 +1,4 @@
 import AppKit
-import ApplicationServices
 
 enum Permissions {
     /// True when Screen Recording is granted. Otherwise asks the system to show its prompt

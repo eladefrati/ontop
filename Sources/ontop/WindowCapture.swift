@@ -13,13 +13,11 @@ final class WindowCapture: NSObject {
 
     var onFrame: ((IOSurface) -> Void)?
     /// The system ended the stream on its own, for example on a display change.
-    var onStopped: ((Error) -> Void)?
+    var onStopped: (() -> Void)?
 
     init(window: SCWindow) {
         self.window = window
     }
-
-    var isRunning: Bool { stream != nil }
 
     func start(pointSize: CGSize, scale: CGFloat) async throws {
         guard stream == nil else { return }
@@ -98,7 +96,7 @@ extension WindowCapture: SCStreamOutput, SCStreamDelegate {
                 guard let current = self.stream, ObjectIdentifier(current) == stopped else { return }
                 self.stream = nil
                 self.lastBuffer = nil
-                self.onStopped?(error)
+                self.onStopped?()
             }
         }
     }

@@ -16,7 +16,6 @@ final class MirrorWindow: NSWindow {
         backgroundColor = .clear
         hasShadow = false
         isReleasedWhenClosed = false
-        isMovableByWindowBackground = false
         let view = MirrorView()
         view.wantsLayer = true
         view.layer?.contentsGravity = .resize
