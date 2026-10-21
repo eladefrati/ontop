@@ -5,8 +5,9 @@ BUILD         := build
 BIN           := .build/$(CONFIG)/$(APP)
 APPDIR        := $(BUILD)/$(APP).app
 ICON          := $(BUILD)/AppIcon.icns
-# First Apple Development identity in the keychain; override with SIGN_IDENTITY=... if needed.
-SIGN_IDENTITY ?= $(shell security find-identity -v -p codesigning | awk -F'"' '/Apple Development/{print $$2; exit}')
+# SHA-1 of the first valid Apple Development identity. A hash is unambiguous where two
+# certificates share a name; override with SIGN_IDENTITY=<hash or name>.
+SIGN_IDENTITY ?= $(shell security find-identity -v -p codesigning | awk '/Apple Development/{print $$2; exit}')
 
 .PHONY: build app install run stop log clean
 
