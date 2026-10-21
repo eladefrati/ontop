@@ -15,6 +15,7 @@ final class HotKey {
         let callback: EventHandlerUPP = { _, _, refcon in
             guard let refcon else { return OSStatus(eventNotHandledErr) }
             let hotKey = Unmanaged<HotKey>.fromOpaque(refcon).takeUnretainedValue()
+            Log.app.info("hotkey pressed")
             // Carbon dispatches application events on the main run loop.
             MainActor.assumeIsolated { hotKey.onPress?() }
             return noErr

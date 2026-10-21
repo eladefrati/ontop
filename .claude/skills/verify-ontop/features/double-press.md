@@ -19,10 +19,11 @@ Preconditions:
 - Baseline; target A unpinned and frontmost; Unpin All before each gap.
 
 - **Press twice.** `probe hotkey --count 2 --gap-ms <gap>`, then wait 2 s.
+- **Both presses arrived.** The log has two `hotkey pressed` lines since the press, so a lost synthetic key event is not mistaken for a lost pin.
 - **End state.** The menu item is unchecked; ontop has no layer-3 window on screen; the log has as many `unpinned <id>` as `pinned … (<id>)` lines since the press.
 - **Orphans.** After Unpin All, any mirror still on screen is an orphan the app no longer tracks: a failure, and the run relaunches ontop so the next gap starts clean.
 
 ## Gotchas
 
-- 2026-10-21, four isolated runs: 40, 80 and 150 ms passed every time. 0 ms failed every time: three times two `pinned` lines and an orphan mirror that survives Unpin All, once one `pinned` and no second line. Inference from the code, not observed directly: both presses start `pin()` before either finishes its ScreenCaptureKit round trip, so `toggle` sees "not pinned" twice. The second shape can't be told apart from a lost synthetic key event: the app logs no line per press.
+- Before the fix, 2026-10-21: 40, 80 and 150 ms passed every time; 0 ms failed every time, either two `pinned` lines and an orphan mirror that survived Unpin All, or one `pinned` line and no unpin. Both presses reached `toggle` before either finished its ScreenCaptureKit round trip, so both saw "not pinned". Now a toggle claims the window's slot at the press, the second press cancels it, and the first press's lookup builds nothing: a 0 ms double press logs `pin cancelled (<id>)` and no `pinned` line.
 - The count of log lines is per ontop pid; after a relaunch, counting starts again.

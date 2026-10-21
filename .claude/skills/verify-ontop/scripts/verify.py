@@ -450,14 +450,17 @@ def f_double_press(run, t):
         run.raise_target(F, t)
         pinned = run.log_count(rf"pinned .*\({t['id']}\)")
         unpinned = run.log_count(rf"unpinned {t['id']}\b")
+        presses = run.log_count(r"hotkey pressed")
         run.hotkey(F, count=2, gap_ms=gap)
         time.sleep(2.0)
         p = run.log_count(rf"pinned .*\({t['id']}\)") - pinned
         u = run.log_count(rf"unpinned {t['id']}\b") - unpinned
+        k = run.log_count(r"hotkey pressed") - presses
         ms = run.my_mirrors()
-        run.step(F, "after double press", gap_ms=gap, pinned_logs=p, unpinned_logs=u, mirrors=ms)
+        run.step(F, "after double press", gap_ms=gap, presses=k, pinned_logs=p, unpinned_logs=u, mirrors=ms)
         item = run.menu_state(F, t["title"])
         F = "double-press" if gap else "double-press-stress"
+        run.check(F, f"{gap} ms gap: ontop received both presses", k == 2, f"{k} logged")
         run.check(F, f"{gap} ms gap: menu shows the window unpinned", item and not item["checked"],
                   item and f"checked {item['checked']}")
         run.check(F, f"{gap} ms gap: no mirror window is left ordered in", not any(w["onscreen"] for w in ms),
@@ -465,11 +468,11 @@ def f_double_press(run, t):
         run.check(F, f"{gap} ms gap: log has as many unpins as pins", p == u, f"pinned {p}, unpinned {u}")
         run.unpin_all(F)
         left = [w for w in run.my_mirrors() if w["onscreen"]]
+        run.check(F, f"{gap} ms gap: Unpin All leaves no mirror behind", not left, f"{len(left)} orphan mirror(s)")
         if left:
             # Mirrors ontop no longer tracks survive Unpin All; only quitting removes them.
             # Relaunch so the next gap starts clean.
             run.step(F, "orphan mirrors after Unpin All", gap_ms=gap, mirrors=left)
-            run.check(F, f"{gap} ms gap: Unpin All leaves no mirror behind", False, f"{len(left)} orphan mirror(s)")
             run.quit_app(F)
             run.launch(F)
 

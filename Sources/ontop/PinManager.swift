@@ -42,10 +42,18 @@ final class PinManager {
 
     func isPinned(_ id: CGWindowID) -> Bool { slots.contains(id) }
 
+    /// Pin if unpinned, unpin if pinned, cancel if still resolving: two toggles in a row,
+    /// however close, leave the window as it was.
     func toggle(_ id: CGWindowID) {
         switch slots.toggle(id) {
-        case .resolve(let ticket): Task { await pin(ticket) }
-        case .unpinned(let pin): unpinned(pin)
+        case .resolve(let ticket):
+            Task { await pin(ticket) }
+            onChange?()
+        case .cancelled:
+            Log.app.info("pin cancelled (\(id))")
+            onChange?()
+        case .unpinned(let pin):
+            unpinned(pin)
         }
     }
 
@@ -57,31 +65,45 @@ final class PinManager {
         toggle(window.id)
     }
 
+    /// One await, then a synchronous build and store. The mirror, stream and AX observer
+    /// are created only after the ticket is known to be current, and no await comes between
+    /// that check and the store.
     private func pin(_ ticket: PinSlots<Pin>.Ticket) async {
         let id = ticket.windowID
-        guard slots.isCurrent(ticket) else { return }
+        let windows: [SCWindow]?
         do {
-            let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
-            guard let window = content.windows.first(where: { $0.windowID == id }) else {
-                Log.app.error("window \(id) is no longer on screen")
-                return
-            }
-            guard let target = TargetWindow(scWindow: window) else {
-                Log.app.error("could not track window \(id)")
-                return
-            }
-            let pin = Pin(target: target)
-            pin.onGone = { [weak self] in
-                _ = self?.slots.remove(id)
-                self?.onChange?()
-            }
-            slots.store(pin, for: ticket)
-            Log.app.info("pinned \(window.title ?? "") (\(id))")
-            pin.evaluate(frontmostPID: lastFrontmostPID)
-            onChange?()
+            windows = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true).windows
         } catch {
             Log.app.error("shareable content: \(error.localizedDescription)")
+            windows = nil
         }
+        guard slots.isCurrent(ticket) else { return }
+        guard let windows, let pin = makePin(id, from: windows) else {
+            _ = slots.remove(id)
+            onChange?()
+            return
+        }
+        slots.store(pin, for: ticket)
+        Log.app.info("pinned \(pin.target.scWindow.title ?? "") (\(id))")
+        pin.evaluate(frontmostPID: lastFrontmostPID)
+        onChange?()
+    }
+
+    private func makePin(_ id: CGWindowID, from windows: [SCWindow]) -> Pin? {
+        guard let window = windows.first(where: { $0.windowID == id }) else {
+            Log.app.error("window \(id) is no longer on screen")
+            return nil
+        }
+        guard let target = TargetWindow(scWindow: window) else {
+            Log.app.error("could not track window \(id)")
+            return nil
+        }
+        let pin = Pin(target: target)
+        pin.onGone = { [weak self] in
+            _ = self?.slots.remove(id)
+            self?.onChange?()
+        }
+        return pin
     }
 
     func unpin(_ id: CGWindowID) {
