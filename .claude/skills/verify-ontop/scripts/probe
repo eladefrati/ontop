@@ -1,0 +1,11 @@
+#!/bin/bash
+# Compiles probe.swift on first use (and whenever it changes) into build/verify/bin, then runs it.
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+repo="$(cd "$here/../../../.." && pwd)"
+bin="$repo/build/verify/bin/probe"
+if [[ ! -x "$bin" || "$here/probe.swift" -nt "$bin" ]]; then
+  mkdir -p "$(dirname "$bin")"
+  swiftc -O -o "$bin" "$here/probe.swift" >&2
+fi
+exec "$bin" "$@"
