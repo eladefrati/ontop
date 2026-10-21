@@ -1,8 +1,8 @@
 import os
 
-/// Interpolated values use the unified logging default, which redacts them as <private>.
-/// For a readable `make log` during debugging, add `privacy: .public` to the
-/// interpolations you need and revert before committing.
+/// Interpolated strings are redacted as <private> by the unified logging default; integers
+/// and other scalars are public. For a readable `make log` during debugging, add
+/// `privacy: .public` to the string interpolations you need and revert before committing.
 enum Log {
     static let subsystem = "io.github.eladefrati.ontop"
     static let app = Logger(subsystem: subsystem, category: "app")
