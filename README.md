@@ -3,6 +3,8 @@
 A macOS menu bar utility that keeps any window visible above all others. Pick a window from
 the menu, or press the hotkey while it is frontmost, and it stays on top until you unpin it.
 
+![A pinned terminal stays on top while a browser window is in front and scrolling](docs/images/demo.gif)
+
 macOS gives no public way to raise another app's window level, so ontop mirrors the pinned
 window into a floating overlay while another app is in front, and gets out of the way the
 moment the pinned window is frontmost. Details in the [proposal](docs/proposal.md); decisions
@@ -20,6 +22,8 @@ Then open ontop from Applications and grant Accessibility and Screen Recording w
 It runs as a pin icon in the menu bar; there is no Dock icon.
 
 ## Use
+
+<img src="docs/images/menu.png" width="287" alt="The ontop menu with a terminal window pinned">
 
 - Click the pin in the menu bar and pick a window, or press Ctrl+Option+P while the window
   you want is in front. Pick or press again to unpin. "Unpin All" clears everything.
