@@ -12,6 +12,9 @@ final class TargetWindow {
     private let appElement: AXUIElement
     private let element: AXUIElement
     private var observer: AXObserver?
+    /// The observer's refcon holds a retain on self, released in `invalidate()`, so a
+    /// callback can never reach a freed target.
+    private var refcon: Unmanaged<TargetWindow>?
 
     var onFrameChanged: ((CGRect) -> Void)?
     var onFocusChanged: (() -> Void)?
@@ -42,11 +45,15 @@ final class TargetWindow {
         installObserver()
     }
 
-    /// Stops observing. Must be called by the owner before the target is released.
+    /// Stops observing and releases the refcon's retain. Idempotent. Until it is called the
+    /// target keeps itself alive.
     func invalidate() {
-        guard let observer else { return }
-        CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
-        self.observer = nil
+        if let observer {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
+            self.observer = nil
+        }
+        refcon?.release()
+        refcon = nil
     }
 
     /// Brings the window to the front of its app and the app to the front of the screen.
@@ -87,7 +94,9 @@ final class TargetWindow {
             Log.target.error("AXObserverCreate failed for pid \(self.pid)")
             return
         }
-        let refcon = Unmanaged.passUnretained(self).toOpaque()
+        let retained = Unmanaged.passRetained(self)
+        self.refcon = retained
+        let refcon = retained.toOpaque()
         for name in [kAXMovedNotification, kAXResizedNotification,
                      kAXWindowMiniaturizedNotification, kAXUIElementDestroyedNotification] {
             let result = AXObserverAddNotification(observer, element, name as CFString, refcon)

@@ -4,6 +4,10 @@ import AppKit
 /// pinned window is frontmost, and hands clicks on the mirror to the real window.
 @MainActor
 final class Pin: NSObject, NSWindowDelegate {
+    enum EndReason {
+        case user, windowGone, appQuit, captureFailed
+    }
+
     let target: TargetWindow
     private let capture: WindowCapture
     private let mirror = MirrorWindow()
@@ -13,12 +17,13 @@ final class Pin: NSObject, NSWindowDelegate {
     private static let maxRestartAttempts = 3
     /// Serializes start, stop and resize so a stop never races a start in flight.
     private var captureTask: Task<Void, Never>?
+    /// Asks the manager to end this pin. A pin never ends itself.
+    private let onEnd: (EndReason) -> Void
 
-    var onGone: (() -> Void)?
-
-    init(target: TargetWindow) {
+    init(target: TargetWindow, onEnd: @escaping (EndReason) -> Void) {
         self.target = target
         self.capture = WindowCapture(window: target.scWindow)
+        self.onEnd = onEnd
         super.init()
         mirror.delegate = self
         // Ordered in now, invisible, so the mirror belongs to the desktop the window is on.
@@ -38,10 +43,7 @@ final class Pin: NSObject, NSWindowDelegate {
         target.onFocusChanged = { [weak self] in
             self?.evaluate(frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier)
         }
-        target.onGone = { [weak self] in
-            self?.unpin()
-            self?.onGone?()
-        }
+        target.onGone = { [weak self] in self?.onEnd(.windowGone) }
     }
 
     /// Hidden while the real window is what the user sees: its app is frontmost and it is
@@ -91,14 +93,13 @@ final class Pin: NSObject, NSWindowDelegate {
     }
 
     /// The system stopped the stream while the mirror is shown. Restart with backoff; give
-    /// up and unpin after repeated failures so a dead mirror never sits over the window.
+    /// up and end the pin after repeated failures so a dead mirror never sits over the window.
     private func restartAfterStop() {
         guard shown else { return }
         restartAttempts += 1
         guard restartAttempts <= Self.maxRestartAttempts else {
             Log.capture.error("stream failed \(self.restartAttempts - 1) times, unpinning")
-            unpin()
-            onGone?()
+            onEnd(.captureFailed)
             return
         }
         let delay = Double(restartAttempts) * 0.5
@@ -125,7 +126,9 @@ final class Pin: NSObject, NSWindowDelegate {
         enqueue { [capture] in await capture.resize(pointSize: size, scale: scale) }
     }
 
-    func unpin() {
+    /// Stream stopped, mirror ordered out, observers removed. Idempotent. Called only by
+    /// PinManager, the one place a pin ends.
+    func end() {
         hide()
         mirror.orderOut(nil)
         target.invalidate()

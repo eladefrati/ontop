@@ -46,15 +46,11 @@ final class PinManager {
     /// however close, leave the window as it was.
     func toggle(_ id: CGWindowID) {
         switch slots.toggle(id) {
-        case .resolve(let ticket):
-            Task { await pin(ticket) }
-            onChange?()
-        case .cancelled:
-            Log.app.info("pin cancelled (\(id))")
-            onChange?()
-        case .unpinned(let pin):
-            unpinned(pin)
+        case .resolve(let ticket): Task { await pin(ticket) }
+        case .cancelled: Log.app.info("pin cancelled (\(id))")
+        case .unpinned(let pin): finish(pin, .user)
         }
+        onChange?()
     }
 
     func pinFrontmostWindow() {
@@ -98,27 +94,31 @@ final class PinManager {
             Log.app.error("could not track window \(id)")
             return nil
         }
-        let pin = Pin(target: target)
-        pin.onGone = { [weak self] in
-            _ = self?.slots.remove(id)
-            self?.onChange?()
-        }
-        return pin
-    }
-
-    func unpin(_ id: CGWindowID) {
-        guard let pin = slots.remove(id) else { return }
-        unpinned(pin)
+        return Pin(target: target, onEnd: { [weak self] reason in self?.remove(id, reason) })
     }
 
     func unpinAll() {
-        for pin in slots.removeAll() { unpinned(pin) }
+        for pin in slots.removeAll() { finish(pin, .user) }
+        onChange?()
     }
 
-    private func unpinned(_ pin: Pin) {
-        pin.unpin()
-        Log.app.info("unpinned \(pin.target.scWindow.windowID)")
+    /// A pin asked to end, or its app quit.
+    private func remove(_ id: CGWindowID, _ reason: Pin.EndReason) {
+        guard let pin = slots.remove(id) else { return }
+        finish(pin, reason)
         onChange?()
+    }
+
+    /// The single teardown path: every pin ends here, whatever ended it.
+    private func finish(_ pin: Pin, _ reason: Pin.EndReason) {
+        pin.end()
+        let id = pin.target.scWindow.windowID
+        switch reason {
+        case .user: Log.app.info("unpinned \(id)")
+        case .windowGone: Log.app.info("unpinned \(id): window closed or minimized")
+        case .appQuit: Log.app.info("unpinned \(id): app quit")
+        case .captureFailed: Log.app.info("unpinned \(id): capture failed")
+        }
     }
 
     @objc private func applicationActivated(_ note: Notification) {
@@ -136,6 +136,6 @@ final class PinManager {
 
     @objc private func applicationTerminated(_ note: Notification) {
         guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
-        for id in slots.ids(where: { $0.target.pid == app.processIdentifier }) { unpin(id) }
+        for id in slots.ids(where: { $0.target.pid == app.processIdentifier }) { remove(id, .appQuit) }
     }
 }
