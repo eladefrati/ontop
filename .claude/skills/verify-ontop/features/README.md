@@ -47,5 +47,6 @@ Each file: an H1, one paragraph of user-visible behaviour, then `Sub-features`,
 - [Pin from the menu](./pin-menu.md): window items, Pin Frontmost Window, Unpin All.
 - [Mirror visibility](./mirror-visibility.md): shown while another app is in front, hidden while the pinned window is.
 - [Click-through](./click-through.md): a click, right-click, double-click, ⇧-click or drag on the mirror lands in the real window.
+- [Sheet click](./sheet-click.md): with a sheet open, the mirror hides while the window is in front, and a click on the mirror reaches the sheet.
 - [Double press](./double-press.md): a quick double press leaves the window unpinned.
 - [Desktops](./desktops.md): mirrors stay on their desktop; Follow Across Desktops.

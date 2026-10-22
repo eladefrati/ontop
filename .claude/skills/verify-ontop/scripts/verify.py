@@ -7,7 +7,8 @@
     verify.py cleanup RUN_DIR        tear down what a run started (after --keep or a crash)
 
 Features: launch-quit, pin-hotkey, pin-menu, mirror-visibility, click-through,
-double-press, desktops. Evidence lands in build/verify/runs/<timestamp>/ and survives cleanup.
+sheet-click, double-press, desktops. Evidence lands in build/verify/runs/<timestamp>/ and
+survives cleanup.
 Exit status 0 when every check passed, 1 when any failed, 2 when the run could not start.
 """
 
@@ -28,15 +29,19 @@ APP_BIN = APP / "Contents" / "MacOS" / "ontop"
 INSTALLED = Path("/Applications/ontop.app")
 RUNS = REPO / "build" / "verify" / "runs"
 BUNDLE = "io.github.eladefrati.ontop"
-FEATURES = ["launch-quit", "pin-hotkey", "pin-menu", "mirror-visibility", "click-through", "double-press", "desktops"]
+FEATURES = ["launch-quit", "pin-hotkey", "pin-menu", "mirror-visibility", "click-through", "sheet-click", "double-press",
+            "desktops"]
 
 # Where the throwaway windows go, in global top-left coordinates on the main display.
 TARGET_FRAME = (160, 140, 640, 420)
 TARGET_B_FRAME = (240, 220, 560, 360)
+SHEET_TARGET_FRAME = (160, 140, 960, 640)
 COVER_FRAME = (100, 100, 900, 560)
 FLOATING_LAYER = 3  # NSWindow.Level.floating: ontop's mirrors and nothing else of ontop's
 CONTEXT_MENU_LAYER = 101  # NSWindow.Level.popUpMenu
 ESCAPE = 53  # kVK_Escape
+# TextEdit sheets: (name, key code, modifiers). Save As is the out-of-process save panel, Page Setup is in-process.
+SHEETS = [("save-as", 1, "cmd,shift,opt"), ("page-setup", 35, "cmd,shift")]
 
 
 class Abort(Exception):
@@ -518,6 +523,61 @@ def wait_selection(run, F, t, done):
     return sel
 
 
+def f_sheet_click(run, t):
+    F = "sheet-click"
+    # Both sheets are wider than the baseline target; a sheet wider than its window is scaled
+    # into the mirror, so the target grows until each sheet fits inside it.
+    probe("ax-place", t["pid"], t["title"], *SHEET_TARGET_FRAME)
+    try:
+        for name, key, flags in SHEETS:
+            sheet_click(run, f"{F} {name}", t, key, flags)
+    finally:
+        probe("ax-place", t["pid"], t["title"], *TARGET_FRAME)
+
+
+def sheet_click(run, F, t, key, flags):
+    def sheet():
+        return probe("ax-sheet", t["pid"], t["title"])["sheet"]
+
+    run.unpin_all(F)
+    run.raise_target(F, t)
+    run.hotkey(F)
+    if not run.check(F, "target pinned", wait_until(run.mirror, 3)):
+        return
+    try:
+        run.raise_target(F, t)
+        probe("key", key, "--flags", flags)
+        if not run.check(F, "the sheet opened on the target", wait_until(sheet, 3)):
+            return
+        # The focus change that shows the mirror can come after the sheet opens: read it once that has settled.
+        time.sleep(1.0)
+        m = run.mirror()
+        run.check(F, "mirror hidden while the target shows its sheet in front", run.hidden(m), m and f"alpha {m['alpha']}")
+        m = show_mirror_again(run, F)
+        if not m:
+            return
+        run.capture(F, m["id"], "mirror-with-sheet")
+        s = sheet()
+        run.step(F, "sheet", sheet=s)
+        cancel = next(b for b in s["buttons"] if b["title"] == "Cancel")
+        x, y = cancel["frame"][0] + cancel["frame"][2] / 2, cancel["frame"][1] + cancel["frame"][3] / 2
+        dropped = run.log_count(r"click dropped")
+        rec = probe("click", x, y)
+        run.step(F, "click Cancel on the mirror", **rec)
+        run.check(F, "the click landed on the mirror", rec["topWindowBeforeClick"].get("id") == m["id"],
+                  f"top window {rec['topWindowBeforeClick'].get('id')} ({rec['topWindowBeforeClick'].get('owner')})")
+        run.check(F, "the click pressed the sheet's Cancel button", wait_until(lambda: sheet() is None, 3))
+        run.check(F, "the click was not dropped", not run.wait_log(r"click dropped", dropped + 1, timeout=1.5),
+                  f"{run.log_count(r'click dropped') - dropped} dropped")
+        run.check(F, "the real window is frontmost", run.front() == t["pid"])
+    finally:
+        if sheet():
+            run.raise_target(F, t)
+            probe("key", ESCAPE)
+            run.step(F, "Escape closes the sheet left open", closed=bool(wait_until(lambda: sheet() is None, 3)))
+        run.unpin_all(F)
+
+
 def f_double_press(run, t):
     F = "double-press"
     # 40 to 150 ms covers a person's quick double press. 0 ms is a stress case faster than any
@@ -657,7 +717,7 @@ def f_desktops(run, t):
 FEATURE_FNS = {
     "launch-quit": f_launch_quit, "pin-hotkey": f_pin_hotkey, "pin-menu": f_pin_menu,
     "mirror-visibility": f_mirror_visibility, "click-through": f_click_through,
-    "double-press": f_double_press, "desktops": f_desktops,
+    "sheet-click": f_sheet_click, "double-press": f_double_press, "desktops": f_desktops,
 }
 
 

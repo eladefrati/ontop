@@ -94,6 +94,7 @@ $P ax-place <pid> "<title>" x y w h # move and size a window
 $P ax-raise <pid> "<title>"         # that window to the front of its app, the app to the front
 $P ax-close <pid> "<title>"         # press its close button
 $P ax-caret <pid> "<title>"         # insertion point offset in the window's text area
+$P ax-sheet <pid> "<title>"         # the window's sheet and its buttons with frames, or null
 $P click x y                        # left click at global top-left coordinates; reports what was on top
 $P click x y --right                # right-click; also --count 2 (double-click), --flags shift,ctrl,opt,cmd
 $P drag x1 y1 x2 y2                 # left-button drag; reports what was on top at the start

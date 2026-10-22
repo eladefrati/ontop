@@ -136,6 +136,12 @@ func findDescendant(_ el: AXUIElement, role: String, depth: Int = 0) -> AXUIElem
     return nil
 }
 
+func findAllDescendants(_ el: AXUIElement, role: String, depth: Int = 0) -> [AXUIElement] {
+    let own = axString(el, kAXRoleAttribute) == role ? [el] : []
+    guard depth < 12 else { return own }
+    return own + axChildren(el).flatMap { findAllDescendants($0, role: role, depth: depth + 1) }
+}
+
 func setFrontmost(_ pid: pid_t) {
     let app = AXUIElementCreateApplication(pid)
     AXUIElementSetAttributeValue(app, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
@@ -482,6 +488,20 @@ case "ax-close":
     guard let button = axElement(w, kAXCloseButtonAttribute) else { fail("window has no close button") }
     AXUIElementPerformAction(button, kAXPressAction as CFString)
     emit(["closed": positional(1, "title")])
+
+case "ax-sheet":
+    // probe ax-sheet <pid> <title> — the sheet attached to the window, with its buttons, or null
+    let w = axWindow(pid: pidArg(0), title: positional(1, "title"))
+    guard let sheet = axChildren(w).first(where: { axString($0, kAXRoleAttribute) == kAXSheetRole }) else {
+        emit(["sheet": NSNull()])
+        break
+    }
+    let frame = axFrame(sheet) ?? .zero
+    let buttons = findAllDescendants(sheet, role: kAXButtonRole).compactMap { b -> [String: Any]? in
+        guard let title = axString(b, kAXTitleAttribute), !title.isEmpty, let f = axFrame(b) else { return nil }
+        return ["title": title, "frame": [f.minX, f.minY, f.width, f.height]]
+    }
+    emit(["sheet": ["frame": [frame.minX, frame.minY, frame.width, frame.height], "buttons": buttons]])
 
 case "ax-caret":
     // probe ax-caret <pid> <title> — insertion point of the window's text area
