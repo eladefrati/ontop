@@ -41,7 +41,9 @@ says what is missing and why.
    Applications, and turn it on.
 3. Choose **Quit & Reopen** when macOS offers it. If you chose **Later**, choose **Relaunch
    ontop** in the ontop menu. A running ontop never sees a Screen Recording grant, so it has
-   to start again.
+   to start again. **Relaunch ontop** quits the running ontop only after the new one has
+   started. If the new one fails to start, the running ontop keeps running, and its icon
+   comes back with the same menu.
 
 If you rebuild with an ad-hoc signature (see [Build](#build)), macOS treats the new build as
 a different app. The old ontop entries still look turned on but no longer apply. In both
@@ -61,10 +63,18 @@ macOS asks you to confirm Screen Recording access again about once a month.
   floating window level, which is above ordinary windows, level with other apps' floating
   panels, and below the menu bar and the Dock.
 - A click on the mirror goes to the real window. The first press brings the window to the
-  front. ontop records the whole gesture, with its mouse button, modifier keys, click count,
-  and drags, and replays it once the window is the top one at that point. A drag takes effect
-  when you release the button. If the window doesn't come to the front within a second, ontop
-  drops the gesture and beeps.
+  front. ontop records the whole gesture, with its mouse button, modifier keys, and drags. It
+  replays the gesture once the window's app is in front and one of its windows is the top one
+  at that point. That window is the pinned window, or its sheet when one is open. A drag takes
+  effect when you release the button. If the window doesn't come to the front within a
+  second, ontop drops the gesture and beeps.
+- A double-click depends on timing. ontop ignores a click on the mirror while it is still
+  delivering the previous one. If the mirror has hidden by your second click, that click goes
+  straight to the real window and the double-click registers. Otherwise ontop delivers only
+  the first click.
+- When a sheet is wider than its window, the mirror shrinks the window and the sheet together
+  to the window's width. A click on the sheet in the mirror then lands at a different place
+  on the real sheet.
 - With several windows pinned, the one you are working in is an ordinary window, so the
   other pins stay above it. Avoid overlapping two pins.
 - A pinned window stays on the desktop it was pinned on. Turn on **Follow Across Desktops**
