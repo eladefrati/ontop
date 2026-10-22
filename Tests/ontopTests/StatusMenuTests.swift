@@ -18,3 +18,19 @@ struct StatusMenuTests {
         #expect(StatusMenu.groupedByApp([]).isEmpty)
     }
 }
+
+@MainActor
+struct WaitingMenuTests {
+    @Test(arguments: [(Permission.accessibility, "ontop needs Accessibility access"),
+                      (Permission.screenRecording, "ontop needs Screen Recording access")])
+    func namesTheMissingPermissionAndOffersItsSettings(_ permission: Permission, _ title: String) throws {
+        let items = StatusMenu.waitingItems(permission, target: nil)
+        let missing = try #require(items.first)
+        #expect(missing.title == title)
+        #expect(!missing.isEnabled)
+        #expect(!(missing.subtitle ?? "").isEmpty)
+        let open = try #require(items.first { $0.title == "Open System Settings\u{2026}" })
+        #expect(open.isEnabled)
+        #expect(open.action != nil)
+    }
+}

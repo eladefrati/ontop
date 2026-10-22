@@ -11,15 +11,46 @@ enum Permission: Equatable {
         case .screenRecording: CGPreflightScreenCaptureAccess()
         }
     }
+
+    /// Asks macOS for the permission. Its prompt is the one dialog per permission and is
+    /// what lists ontop in Privacy & Security. macOS decides whether the prompt appears.
+    func request() {
+        switch self {
+        case .accessibility:
+            // The key is a C global the compiler cannot prove immutable; it is a constant string.
+            _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
+        case .screenRecording:
+            _ = CGRequestScreenCaptureAccess()
+        }
+    }
+
+    /// The permission's pane in Privacy & Security.
+    var settingsURL: URL {
+        switch self {
+        case .accessibility: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+        case .screenRecording: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .accessibility: "ontop needs Accessibility access"
+        case .screenRecording: "ontop needs Screen Recording access"
+        }
+    }
+
+    var reason: String {
+        switch self {
+        case .accessibility: "To bring a pinned window forward when you click its mirror and follow it when it moves."
+        case .screenRecording: "To list windows and show a pinned window above other apps. ontop relaunches once it is on."
+        }
+    }
 }
 
 /// Walks the user through the two permissions. Accessibility takes effect at once;
 /// Screen Recording takes effect only in a new process, so ontop relaunches itself.
 @MainActor
 enum Onboarding {
-    private static let accessibilityPane = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-    private static let screenRecordingPane = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
-
     enum Outcome {
         /// Every permission works in this process.
         case ready
@@ -41,8 +72,11 @@ enum Onboarding {
         return .done(screenRecordingWasMissingAtLaunch ? .relaunch : .ready)
     }
 
-    /// Returns once both permissions are granted. Quits the app if the user declines.
-    static func ensurePermissions() async -> Outcome {
+    /// Returns at once when both permissions are granted. Otherwise, for each missing one in
+    /// turn, reports it through `onWaiting`, asks macOS for it once, and checks every second
+    /// until it is granted. ontop shows no dialog of its own: the status menu explains what
+    /// is missing and offers Quit throughout.
+    static func run(onWaiting: (Permission) -> Void) async -> Outcome {
         let screenRecordingWasMissingAtLaunch = !Permission.screenRecording.isGranted
         var asked: Permission?
         while true {
@@ -52,41 +86,13 @@ enum Onboarding {
             case .needs(let permission):
                 if permission != asked {
                     asked = permission
-                    ask(permission)
+                    onWaiting(permission)
+                    permission.request()
                 }
                 try? await Task.sleep(for: .seconds(1))
             case .done(let outcome):
                 return outcome
             }
-        }
-    }
-
-    private static func ask(_ permission: Permission) {
-        switch permission {
-        case .accessibility:
-            _ = Permissions.ensureAccessibility()
-            ask(title: "ontop needs Accessibility access",
-                text: "It is used to bring a pinned window forward when you click its mirror and to follow the window when it moves or resizes.\n\nTurn on ontop under Accessibility, then come back; ontop continues on its own.",
-                pane: accessibilityPane)
-        case .screenRecording:
-            _ = Permissions.ensureScreenRecording()
-            ask(title: "ontop needs Screen Recording access",
-                text: "It is used to list windows and to show a pinned window above other apps.\n\nTurn on ontop under Screen & System Audio Recording. ontop relaunches itself once it is on.",
-                pane: screenRecordingPane)
-        }
-    }
-
-    private static func ask(title: String, text: String, pane: String) {
-        let alert = NSAlert()
-        alert.messageText = title
-        alert.informativeText = text
-        alert.addButton(withTitle: "Open System Settings")
-        alert.addButton(withTitle: "Quit")
-        NSApp.activate()
-        if alert.runModal() == .alertFirstButtonReturn, let url = URL(string: pane) {
-            NSWorkspace.shared.open(url)
-        } else {
-            NSApp.terminate(nil)
         }
     }
 

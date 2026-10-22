@@ -54,8 +54,9 @@ status 1 when not ready.
 2. `make app` (builds, bundles, signs `build/ontop.app`).
 3. Starts `log stream --level info --style compact --predicate 'subsystem == "io.github.eladefrati.ontop"'` into the run's `ontop.log`.
 4. `open build/ontop.app`. **Ready** means the new pid logged `hotkey registered`. No
-   such line within 10 s usually means an onboarding alert (permissions not granted to
-   this build): the run aborts and says so. Don't click the alert; ask the user.
+   such line within 10 s usually means onboarding is waiting for a permission this build
+   lacks (icon `pin.slash`, the menu reads "ontop needs … access"): the run aborts and
+   says so. Don't grant it; ask the user.
 5. Opens target A in TextEdit at (160, 140, 640×420) and starts the cover at (100, 100, 900×560).
 
 Teardown (cleanup) unpins everything, restores Follow Across Desktops, quits the test build

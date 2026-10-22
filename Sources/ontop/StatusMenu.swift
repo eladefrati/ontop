@@ -1,31 +1,80 @@
 import AppKit
 import ServiceManagement
 
-/// The menu bar item and its menu: pinned state per window, grouped by app.
+/// The menu bar item and its menu. It exists from launch, so Quit is always there; what the
+/// menu offers follows `mode`.
 @MainActor
 final class StatusMenu: NSObject, NSMenuDelegate {
-    private let manager: PinManager
-    private let hotKey: HotKey
+    enum Mode {
+        /// Onboarding has not reported yet: the footer only.
+        case starting
+        /// A permission is missing: what and why, a way to grant it, and the footer.
+        case waiting(Permission)
+        /// Pinned state per window, grouped by app, and the settings.
+        case ready(PinManager, HotKey)
+    }
+
+    var mode: Mode = .starting {
+        didSet {
+            if case .ready(let manager, _) = mode {
+                manager.onChange = { [weak self] in self?.updateIcon() }
+            }
+            updateIcon()
+        }
+    }
+
     private let item: NSStatusItem
     private let menu = NSMenu()
     private var recorder: ChordRecorderWindow?
 
-    init(manager: PinManager, hotKey: HotKey) {
-        self.manager = manager
-        self.hotKey = hotKey
+    override init() {
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
         menu.delegate = self
         menu.autoenablesItems = false
         item.menu = menu
-        manager.onChange = { [weak self] in self?.updateIcon() }
         updateIcon()
+    }
+
+    /// Takes the icon out of the menu bar, just before a relaunch.
+    func remove() {
+        NSStatusBar.system.removeStatusItem(item)
     }
 
     // Rebuilt every time it opens, so the window list is current.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
+        switch mode {
+        case .starting:
+            break
+        case .waiting(let permission):
+            for item in Self.waitingItems(permission, target: self) { menu.addItem(item) }
+        case .ready(let manager, _):
+            addReady(manager)
+        }
+        for item in Self.footer() { menu.addItem(item) }
+    }
 
+    /// While a permission is missing: what is missing and why, and a way to grant it. macOS
+    /// shows its own prompt once; this menu is ontop's explanation.
+    static func waitingItems(_ permission: Permission, target: AnyObject?) -> [NSMenuItem] {
+        let missing = NSMenuItem(title: permission.title, action: nil, keyEquivalent: "")
+        missing.subtitle = permission.reason
+        missing.isEnabled = false
+        let open = NSMenuItem(title: "Open System Settings\u{2026}", action: #selector(openPermissionSettings), keyEquivalent: "")
+        open.target = target
+        return [missing, open, .separator()]
+    }
+
+    /// The version and Quit, in every mode.
+    private static func footer() -> [NSMenuItem] {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+        let about = NSMenuItem(title: "ontop \(version)", action: nil, keyEquivalent: "")
+        about.isEnabled = false
+        return [about, NSMenuItem(title: "Quit ontop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")]
+    }
+
+    private func addReady(_ manager: PinManager) {
         let chord = Settings.chord
         let pinFront = NSMenuItem(title: "Pin Frontmost Window", action: #selector(pinFrontmost), keyEquivalent: chord.keyEquivalent)
         pinFront.keyEquivalentModifierMask = chord.flags
@@ -72,11 +121,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         shortcut.target = self
         menu.addItem(shortcut)
         menu.addItem(.separator())
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
-        let about = NSMenuItem(title: "ontop \(version)", action: nil, keyEquivalent: "")
-        about.isEnabled = false
-        menu.addItem(about)
-        menu.addItem(withTitle: "Quit ontop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
     }
 
     /// Apps in order of their frontmost window; windows in front-to-back order within each.
@@ -91,24 +135,37 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     private func updateIcon() {
-        let name = manager.hasPins ? "pin.fill" : "pin"
+        let name = switch mode {
+        case .starting: "pin"
+        case .waiting: "pin.slash"
+        case .ready(let manager, _): manager.hasPins ? "pin.fill" : "pin"
+        }
         item.button?.image = NSImage(systemSymbolName: name, accessibilityDescription: "ontop")
+    }
+
+    private var manager: PinManager? {
+        if case .ready(let manager, _) = mode { manager } else { nil }
+    }
+
+    @objc private func openPermissionSettings() {
+        guard case .waiting(let permission) = mode else { return }
+        NSWorkspace.shared.open(permission.settingsURL)
     }
 
     @objc private func pinFrontmost() {
         // The shortcut shown on this item is also the global hot key, which fires for the
         // same press; let the hot key handle keyboard activation so the pin toggles once.
         guard NSApp.currentEvent?.type != .keyDown else { return }
-        manager.pinFrontmostWindow()
+        manager?.pinFrontmostWindow()
     }
 
     @objc private func toggleWindow(_ sender: NSMenuItem) {
         guard let id = (sender.representedObject as? NSNumber)?.uint32Value else { return }
-        manager.toggle(id)
+        manager?.toggle(id)
     }
 
     @objc private func unpinAll() {
-        manager.unpinAll()
+        manager?.unpinAll()
     }
 
     @objc private func toggleLaunchAtLogin() {
@@ -125,10 +182,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func toggleFollowsDesktops() {
-        manager.followsDesktops.toggle()
+        manager?.followsDesktops.toggle()
     }
 
     @objc private func changeShortcut() {
+        guard case .ready(_, let hotKey) = mode else { return }
         let window = ChordRecorderWindow(current: Settings.chord)
         recorder = window
         window.present { [weak self] chord in
@@ -137,13 +195,13 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             guard let chord, chord != Settings.chord else { return }
             let previous = Settings.chord
             do {
-                try self.hotKey.register(chord)
+                try hotKey.register(chord)
                 Settings.chord = chord
             } catch HotKey.RegistrationError.inUse {
-                try? self.hotKey.register(previous)
+                try? hotKey.register(previous)
                 Self.alert("Shortcut in use", "\(chord.display) is already taken by another app. The shortcut stays \(previous.display).")
             } catch {
-                try? self.hotKey.register(previous)
+                try? hotKey.register(previous)
                 Self.alert("Could not set shortcut", String(describing: error))
             }
         }

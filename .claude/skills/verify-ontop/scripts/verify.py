@@ -113,7 +113,7 @@ def doctor(quiet=False):
         sig = sh("codesign", "-dvv", APP, check=False).stderr
         if "Authority=Apple Development" not in sig:
             problems.append("build/ontop.app is not signed with an Apple Development certificate; "
-                            "its permission grants would not match and onboarding alerts would block the run")
+                            "its permission grants would not match and onboarding would block the run")
     else:
         notes.append("build/ontop.app does not exist yet; run builds it")
     for proc in ontop_processes():
@@ -220,7 +220,7 @@ class Run:
             wins = probe("windows", "--pid", pid, "--all")
             raise Abort(f"ontop pid {pid} never logged 'hotkey registered' "
                         f"(unavailable: {unavailable}; its windows: {[w['name'] for w in wins]}). "
-                        "An onboarding alert means the build's permissions are not granted; ask the user.")
+                        "A pin.slash icon ('ontop needs … access' in its menu) means the build's permissions are not granted; ask the user.")
         return pid
 
     def menu(self, feature, *args):

@@ -33,4 +33,4 @@ Preconditions:
 - `open build/ontop.app` only activates an already running ontop with the same bundle id, including the installed one. The doctor and the run make sure none is running.
 - In macOS 26 the status item's window belongs to Control Center, not ontop: `probe windows --pid <ontop>` lists no window for it. Reach the menu through Accessibility (`AXExtrasMenuBar`).
 - The menu's AXMenu element outlives the menu with its old items. The probe treats the menu as open only while the status item's `AXSelected` is true; reading the stale element gave wrong check marks.
-- An onboarding alert ("ontop needs … access") means the build lacks a grant. Don't click it; ask the user. Never reset TCC.
+- A `pin.slash` icon whose menu reads "ontop needs … access" means the build lacks a grant. Don't grant it; ask the user. Never reset TCC.

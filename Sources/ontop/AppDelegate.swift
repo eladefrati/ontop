@@ -2,30 +2,33 @@ import AppKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var manager: PinManager?
-    private var hotKey: HotKey?
+    /// Owns the manager and the hotkey through its mode, once onboarding is done.
     private var statusMenu: StatusMenu?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        Task { await start() }
+        // The icon and Quit come first, whatever onboarding waits for.
+        let statusMenu = StatusMenu()
+        self.statusMenu = statusMenu
+        Task { await start(statusMenu) }
     }
 
-    private func start() async {
-        // A process that is about to relaunch builds nothing: no second icon, no hotkey race.
-        guard await Onboarding.ensurePermissions() == .ready else {
+    private func start(_ statusMenu: StatusMenu) async {
+        switch await Onboarding.run(onWaiting: { statusMenu.mode = .waiting($0) }) {
+        case .relaunch:
+            // A process that is about to relaunch builds nothing, and its icon goes first, so
+            // the menu bar never shows two icons and two processes never race for the hotkey.
+            statusMenu.remove()
             Onboarding.relaunch()
-            return
+        case .ready:
+            let manager = PinManager()
+            let hotKey = HotKey()
+            hotKey.onPress = { manager.pinFrontmostWindow() }
+            do {
+                try hotKey.register(Settings.chord)
+            } catch {
+                Log.app.error("hotkey \(Settings.chord.display) unavailable: \(String(describing: error))")
+            }
+            statusMenu.mode = .ready(manager, hotKey)
         }
-        let manager = PinManager()
-        let hotKey = HotKey()
-        hotKey.onPress = { manager.pinFrontmostWindow() }
-        do {
-            try hotKey.register(Settings.chord)
-        } catch {
-            Log.app.error("hotkey \(Settings.chord.display) unavailable: \(String(describing: error))")
-        }
-        self.manager = manager
-        self.hotKey = hotKey
-        self.statusMenu = StatusMenu(manager: manager, hotKey: hotKey)
     }
 }
