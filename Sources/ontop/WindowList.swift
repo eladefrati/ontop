@@ -80,7 +80,7 @@ enum WindowList {
         var axWindows: [pid_t: [AXWindowShape]] = [:]
         return windows.filter { window in
             if axWindows[window.pid] == nil {
-                axWindows[window.pid] = AX.windows(of: AX.application(window.pid)).map(\.shape)
+                axWindows[window.pid] = AX.windows(of: AXUIElementCreateApplication(window.pid)).map(\.shape)
             }
             return WindowMatch.index(frame: window.frame, title: window.title, in: axWindows[window.pid]!) != nil
         }

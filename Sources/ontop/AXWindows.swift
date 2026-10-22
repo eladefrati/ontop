@@ -33,17 +33,6 @@ enum WindowMatch {
 
 /// Typed readers over the untyped Accessibility attribute API.
 enum AX {
-    /// The system default is 6 s per call. An app that does not answer now costs the menu or
-    /// the hotkey half a second: its first call, for the window list, times out.
-    static let messagingTimeout: Float = 0.5
-
-    /// The one way ontop makes an app's element, so every app element has the timeout.
-    static func application(_ pid: pid_t) -> AXUIElement {
-        let app = AXUIElementCreateApplication(pid)
-        AXUIElementSetMessagingTimeout(app, messagingTimeout)
-        return app
-    }
-
     static func value(_ element: AXUIElement, _ attribute: String) -> CFTypeRef? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else { return nil }
