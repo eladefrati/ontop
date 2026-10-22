@@ -1,5 +1,4 @@
 import AppKit
-import ScreenCaptureKit
 
 /// A permission ontop cannot work without.
 enum Permission: Equatable {
@@ -43,7 +42,7 @@ enum Permission: Equatable {
     var reason: String {
         switch self {
         case .accessibility: "To bring a pinned window forward when you click its mirror and follow it when it moves."
-        case .screenRecording: "To list windows and show a pinned window above other apps. ontop relaunches once it is on. If ontop isn't in the list, click + and add it from Applications."
+        case .screenRecording: "To list windows and show a pinned window above other apps. ontop relaunches once it is on."
         }
     }
 }
@@ -81,9 +80,8 @@ enum Onboarding {
         let screenRecordingWasMissingAtLaunch = !Permission.screenRecording.isGranted
         var asked: Permission?
         while true {
-            let screenRecording = await screenRecordingWorks(asked: asked == .screenRecording)
             switch step(accessibility: Permission.accessibility.isGranted,
-                        screenRecording: screenRecording,
+                        screenRecording: Permission.screenRecording.isGranted,
                         screenRecordingWasMissingAtLaunch: screenRecordingWasMissingAtLaunch) {
             case .needs(let permission):
                 if permission != asked {
@@ -96,16 +94,6 @@ enum Onboarding {
                 return outcome
             }
         }
-    }
-
-    /// Whether Screen Recording works in this process. Preflight keeps its launch-time answer
-    /// for the life of the process, so a grant made while ontop waits shows only as
-    /// ScreenCaptureKit starting to answer. That is tried only after macOS has been asked, so
-    /// its prompt comes first.
-    private static func screenRecordingWorks(asked: Bool) async -> Bool {
-        if Permission.screenRecording.isGranted { return true }
-        guard asked else { return false }
-        return (try? await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)) != nil
     }
 
     /// Opens a new instance of the bundle and terminates this one once it has started, or
