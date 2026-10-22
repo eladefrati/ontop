@@ -15,16 +15,21 @@ enum WindowList {
     /// only ones ontop can pin.
     @MainActor
     static func onScreen() -> [WindowInfo] {
+        accessible(candidates())
+    }
+
+    /// The front window of the given app, if it has one on screen. Filters by pid before
+    /// any Accessibility call, so it reads that one app only.
+    @MainActor
+    static func frontWindow(ofPID pid: pid_t) -> WindowInfo? {
+        accessible(candidates().filter { $0.pid == pid }).first
+    }
+
+    /// The window server's on-screen, normal-level, titled windows of other apps, front to back.
+    private static func candidates() -> [WindowInfo] {
         let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
         guard let raw = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return [] }
         let ownPID = ProcessInfo.processInfo.processIdentifier
-        var axWindows: [pid_t: [AXWindowShape]] = [:]
-        func isAccessible(_ window: WindowInfo) -> Bool {
-            if axWindows[window.pid] == nil {
-                axWindows[window.pid] = AX.windows(of: AXUIElementCreateApplication(window.pid)).map(\.shape)
-            }
-            return WindowMatch.index(frame: window.frame, title: window.title, in: axWindows[window.pid]!) != nil
-        }
         return raw.compactMap { info -> WindowInfo? in
             guard let id = info[kCGWindowNumber as String] as? CGWindowID,
                   let pid = info[kCGWindowOwnerPID as String] as? pid_t,
@@ -38,12 +43,18 @@ enum WindowList {
             else { return nil }
             return WindowInfo(id: id, pid: pid, appName: appName, title: title, frame: CGRect(x: x, y: y, width: w, height: h))
         }
-        .filter(isAccessible)
     }
 
-    /// The front window of the given app, if it has one on screen.
+    /// Keeps the windows WindowMatch finds among their app's Accessibility windows. Reads each
+    /// app's windows once.
     @MainActor
-    static func frontWindow(ofPID pid: pid_t) -> WindowInfo? {
-        onScreen().first { $0.pid == pid }
+    private static func accessible(_ windows: [WindowInfo]) -> [WindowInfo] {
+        var axWindows: [pid_t: [AXWindowShape]] = [:]
+        return windows.filter { window in
+            if axWindows[window.pid] == nil {
+                axWindows[window.pid] = AX.windows(of: AX.application(window.pid)).map(\.shape)
+            }
+            return WindowMatch.index(frame: window.frame, title: window.title, in: axWindows[window.pid]!) != nil
+        }
     }
 }

@@ -35,7 +35,7 @@ final class TargetWindow {
         self.pid = pid
         self.app = app
         self.frame = frame
-        self.appElement = AXUIElementCreateApplication(pid)
+        self.appElement = AX.application(pid)
         let windows = AX.windows(of: appElement)
         guard let index = WindowMatch.index(frame: frame, title: title, in: windows.map(\.shape)) else {
             Log.target.error("no accessibility element matches window \(windowID)")
