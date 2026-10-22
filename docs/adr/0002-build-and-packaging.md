@@ -19,12 +19,16 @@ signature loses both grants on every rebuild.
 
 1. **SwiftPM executable target**, Swift 6, AppKit, no dependencies. No Xcode project; all
    build inputs are text files under version control.
-2. **A `Makefile` assembles the bundle:** `make app` builds release, lays out
-   `build/ontop.app/Contents/{MacOS,Resources,Info.plist}`, and codesigns. `make install`
-   copies the bundle to `/Applications`. `make run` launches it.
+2. **A `Makefile` assembles the bundle:** `make app`, the default goal, builds release, lays
+   out `build/ontop.app/Contents/{MacOS,Resources,Info.plist}`, and codesigns. `make install`
+   quits a running ontop, copies the bundle to `/Applications`, and reopens it if it was
+   running, because copying over a running bundle leaves the old code running.
+   `make uninstall` removes it. `make run` launches the build.
 3. **Sign with an Apple Development certificate** from a free personal team, identity
-   selected by a `SIGN_IDENTITY` make variable. Falls back to ad-hoc signing with a printed
-   warning when none is found.
+   selected by a `SIGN_IDENTITY` make variable. It defaults to the first Apple Development
+   identity's SHA-1 hash, because codesign rejects a name that two certificates share, as a
+   renewed certificate and the one it replaces do. Falls back to ad-hoc signing with a
+   printed warning when none is found.
 4. **No sandbox, no restricted entitlements**, so no provisioning profile is needed.
 
 ## Consequences
