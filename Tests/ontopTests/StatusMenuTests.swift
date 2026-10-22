@@ -5,7 +5,7 @@ import Testing
 @MainActor
 struct StatusMenuTests {
     private func window(_ id: CGWindowID, _ appName: String) -> WindowInfo {
-        WindowInfo(id: id, pid: 1, appName: appName, title: "w\(id)", frame: .zero)
+        WindowInfo(id: id, pid: 1, appName: appName, title: "w\(id)", frame: .zero, isCapturable: true)
     }
 
     @Test func groupsByAppInOrderOfEachAppsFrontmostWindow() {

@@ -68,6 +68,10 @@ final class PinManager {
             Log.app.info("no frontmost window to pin")
             return
         }
+        guard window.isCapturable else {
+            Log.app.info("front window \(window.id) can't be captured")
+            return
+        }
         toggle(window.id)
     }
 

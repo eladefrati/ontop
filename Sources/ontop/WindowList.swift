@@ -7,30 +7,37 @@ struct WindowInfo {
     let appName: String
     let title: String
     let frame: CGRect
+    /// False when its app marks the window as not capturable (sharing state none).
+    let isCapturable: Bool
 }
 
 enum WindowList {
-    /// On-screen, normal-level, titled windows of other apps, front to back, limited to
-    /// windows that WindowMatch finds among their app's Accessibility windows. Those are the
-    /// only ones ontop can pin.
+    /// On-screen, normal-level, titled, capturable windows of other apps, front to back,
+    /// limited to windows that WindowMatch finds among their app's Accessibility windows.
+    /// Those are the only ones ontop can pin.
     @MainActor
     static func onScreen() -> [WindowInfo] {
-        accessible(candidates())
+        accessible(candidates().filter(\.isCapturable))
     }
 
-    /// The front window of the given app, if it has one on screen. Filters by pid before
-    /// any Accessibility call, so it reads that one app only.
+    /// The front window of the given app, if it has one on screen, capturable or not: the
+    /// caller reports a window that can't be captured rather than pinning the app's next one.
+    /// Filters by pid before any Accessibility call, so it reads that one app only.
     @MainActor
     static func frontWindow(ofPID pid: pid_t) -> WindowInfo? {
         accessible(candidates().filter { $0.pid == pid }).first
     }
 
-    /// The window server's on-screen, normal-level, titled windows of other apps, front to back.
     private static func candidates() -> [WindowInfo] {
         let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-        guard let raw = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return [] }
-        let ownPID = ProcessInfo.processInfo.processIdentifier
-        return raw.compactMap { info -> WindowInfo? in
+        let raw = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] ?? []
+        return parse(raw, ownPID: ProcessInfo.processInfo.processIdentifier)
+    }
+
+    /// Normal-level (layer 0) windows of other apps with alpha above 0, a title and bounds,
+    /// front to back, from the window server's dictionaries.
+    static func parse(_ raw: [[String: Any]], ownPID: pid_t) -> [WindowInfo] {
+        raw.compactMap { info -> WindowInfo? in
             guard let id = info[kCGWindowNumber as String] as? CGWindowID,
                   let pid = info[kCGWindowOwnerPID as String] as? pid_t,
                   pid != ownPID,
@@ -41,7 +48,9 @@ enum WindowList {
                   let bounds = info[kCGWindowBounds as String] as? [String: CGFloat],
                   let x = bounds["X"], let y = bounds["Y"], let w = bounds["Width"], let h = bounds["Height"]
             else { return nil }
-            return WindowInfo(id: id, pid: pid, appName: appName, title: title, frame: CGRect(x: x, y: y, width: w, height: h))
+            let sharing = info[kCGWindowSharingState as String] as? UInt32
+            return WindowInfo(id: id, pid: pid, appName: appName, title: title, frame: CGRect(x: x, y: y, width: w, height: h),
+                              isCapturable: sharing != CGWindowSharingType.none.rawValue)
         }
     }
 
