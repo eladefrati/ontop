@@ -1,4 +1,5 @@
 import CoreGraphics
+import ServiceManagement
 import Testing
 @testable import ontop
 
@@ -16,6 +17,19 @@ struct StatusMenuTests {
 
     @Test func noWindowsGiveNoGroups() {
         #expect(StatusMenu.groupedByApp([]).isEmpty)
+    }
+
+    @Test func launchAtLoginIsCheckedWhenEnabled() {
+        #expect(StatusMenu.launchAtLoginState(.enabled) == .on)
+    }
+
+    @Test func launchAtLoginShowsADashWhileItWaitsForApproval() {
+        #expect(StatusMenu.launchAtLoginState(.requiresApproval) == .mixed)
+    }
+
+    @Test(arguments: [SMAppService.Status.notRegistered, .notFound])
+    func launchAtLoginIsUncheckedOtherwise(_ status: SMAppService.Status) {
+        #expect(StatusMenu.launchAtLoginState(status) == .off)
     }
 }
 

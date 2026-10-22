@@ -118,7 +118,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
         let launch = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
         launch.target = self
-        launch.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        launch.state = Self.launchAtLoginState(SMAppService.mainApp.status)
         menu.addItem(launch)
         let follow = NSMenuItem(title: "Follow Across Desktops", action: #selector(toggleFollowsDesktops), keyEquivalent: "")
         follow.target = self
@@ -139,6 +139,16 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             groups[window.appName, default: []].append(window)
         }
         return order.map { ($0, groups[$0]!) }
+    }
+
+    /// A check mark when enabled, a dash while macOS waits for the user to approve the login
+    /// item in System Settings, nothing otherwise.
+    static func launchAtLoginState(_ status: SMAppService.Status) -> NSControl.StateValue {
+        switch status {
+        case .enabled: .on
+        case .requiresApproval: .mixed
+        default: .off
+        }
     }
 
     private func updateIcon() {
@@ -177,10 +187,15 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func toggleLaunchAtLogin() {
         do {
-            if SMAppService.mainApp.status == .enabled {
+            switch SMAppService.mainApp.status {
+            case .enabled:
                 try SMAppService.mainApp.unregister()
-            } else {
+            case .requiresApproval:
+                // Only the user can approve it, in System Settings > Login Items.
+                SMAppService.openSystemSettingsLoginItems()
+            default:
                 try SMAppService.mainApp.register()
+                if SMAppService.mainApp.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
             }
         } catch {
             Log.app.error("launch at login: \(error.localizedDescription)")
