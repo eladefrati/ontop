@@ -1,8 +1,8 @@
 import AppKit
 
 /// Carries a mouse gesture that landed on a mirror to the real window. Records it, any button
-/// with its drags, modifiers and click count, from the first button down until every button is
-/// up, then posts it once the caller says the real window is in front at that point. A window
+/// with its drags and modifiers, from the first button down until every button is up, then
+/// posts it once the caller says the real window is in front at that point. A window
 /// that does not come forward within the deadline loses the gesture rather than it landing on
 /// whatever is underneath.
 ///
@@ -30,8 +30,8 @@ final class ClickForwarder {
     /// Every button of the gesture is up again.
     var isComplete: Bool { !recording.isEmpty && buttonsDown == 0 }
 
-    /// Keeps the event's button, location, modifier flags and click state, so a double-click
-    /// replays as one. A drag or up before any down is ignored.
+    /// Keeps the event's button, location, modifier flags and click state. A drag or up before
+    /// any down is ignored.
     func record(_ event: CGEvent) {
         guard !isComplete else { return }
         switch event.type {

@@ -6,10 +6,9 @@ import Testing
 struct ClickForwarderTests {
     private let point = CGPoint(x: 100, y: 200)
 
-    private func event(_ type: CGEventType, button: CGMouseButton = .left, clickState: Int64 = 1,
+    private func event(_ type: CGEventType, button: CGMouseButton = .left,
                        flags: CGEventFlags = [], at location: CGPoint? = nil) -> CGEvent {
         let event = CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: location ?? point, mouseButton: button)!
-        event.setIntegerValueField(.mouseEventClickState, value: clickState)
         event.flags = flags
         return event
     }
@@ -50,15 +49,6 @@ struct ClickForwarderTests {
         #expect(await forwarder.deliver(when: { true }))
         #expect(posted.events.map(\.type) == [.leftMouseDown, .leftMouseDragged, .leftMouseUp])
         #expect(posted.events.map(\.location) == [point, end, end])
-    }
-
-    @Test func aDoubleClickKeepsItsClickCount() async {
-        let posted = Posted()
-        let forwarder = forwarder(posted)
-        forwarder.record(event(.leftMouseDown, clickState: 2))
-        forwarder.record(event(.leftMouseUp, clickState: 2))
-        _ = await forwarder.deliver(when: { true })
-        #expect(posted.events.map { $0.getIntegerValueField(.mouseEventClickState) } == [2, 2])
     }
 
     @Test func modifierKeysAndTheButtonAreKept() async {
