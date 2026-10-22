@@ -13,12 +13,11 @@ final class Pin: NSObject, NSWindowDelegate {
     private let capture: WindowCapture
     private let mirror = MirrorWindow()
     private var placement: MirrorPlacement = .notPlaced
-    private var shown = false
-    private var awaitingFirstFrame = false
-    private var restartAttempts = 0
-    private static let maxRestartAttempts = 3
+    private var stream: MirrorStream = .hidden
     /// Serializes start, stop and resize so a stop never races a start in flight.
     private var captureTask: Task<Void, Never>?
+    /// The pending start after a failure. Cancelled whenever the stream goes hidden.
+    private var retryTask: Task<Void, Never>?
     private let context: () -> PinContext
     /// Asks the manager to end this pin. A pin never ends itself.
     private let onEnd: (EndReason) -> Void
@@ -31,14 +30,11 @@ final class Pin: NSObject, NSWindowDelegate {
         super.init()
         mirror.delegate = self
         capture.onFrame = { [weak self] surface in
-            guard let self else { return }
+            // A late frame after a hide leaves the stream hidden and is dropped.
+            guard let self, self.send(.frame).showsFrames else { return }
             self.mirror.display(surface)
-            if self.awaitingFirstFrame {
-                self.awaitingFirstFrame = false
-                self.mirror.setVisible(true)
-            }
         }
-        capture.onStopped = { [weak self] in self?.restartAfterStop() }
+        capture.onStopped = { [weak self] in self?.send(.stopped) }
         mirror.onClick = { [weak self] point in self?.clicked(at: point) }
         target.onFrameChanged = { [weak self] frame in self?.frameChanged(frame) }
         target.onFocusChanged = { [weak self] in self?.evaluate() }
@@ -59,7 +55,7 @@ final class Pin: NSObject, NSWindowDelegate {
             mirror.setFrame(Geometry.appKitRect(fromCG: target.frame), display: false)
             mirror.orderFrontRegardless()
         case .orderOut:
-            hide()
+            send(.hide)
             mirror.orderOut(nil)
         case .none:
             break
@@ -68,71 +64,72 @@ final class Pin: NSObject, NSWindowDelegate {
         let realWindowInFront = context.frontmostPID == target.pid && target.isFocusedInApp
         let onActiveDesktop = placement.isOnActiveDesktop(windowOnScreen: { target.isOnScreen },
                                                           mirrorOnActiveSpace: { mirror.isOnActiveSpace })
-        if MirrorVisibility.wanted(realWindowInFront: realWindowInFront, onActiveDesktop: onActiveDesktop) {
-            show()
-        } else {
-            hide()
+        send(MirrorVisibility.wanted(realWindowInFront: realWindowInFront, onActiveDesktop: onActiveDesktop) ? .show : .hide)
+    }
+
+    /// The one place the stream state changes. Mirror alpha and click-through follow
+    /// `showsFrames`.
+    @discardableResult
+    private func send(_ event: MirrorStream.Event) -> MirrorStream {
+        let previous = stream
+        let (next, effect) = previous.on(event)
+        stream = next
+        if next.showsFrames != previous.showsFrames { mirror.setVisible(next.showsFrames) }
+        if next == .hidden, previous != .hidden {
+            mirror.clear()
+            retryTask?.cancel()
+            retryTask = nil
         }
-    }
-
-    func show() {
-        guard !shown else { return }
-        shown = true
-        let frame = Geometry.appKitRect(fromCG: target.frame)
-        mirror.setFrame(frame, display: false)
-        mirror.orderFrontRegardless()
-        awaitingFirstFrame = true
-        let scale = mirror.backingScaleFactor
-        enqueue { [capture] in
-            do {
-                try await capture.start(pointSize: frame.size, scale: scale)
-            } catch {
-                Log.capture.error("start: \(error.localizedDescription)")
-            }
-        }
-        Log.mirror.info("shown at \(frame.debugDescription)")
-    }
-
-    func hide() {
-        guard shown else { return }
-        shown = false
-        awaitingFirstFrame = false
-        restartAttempts = 0
-        mirror.setVisible(false)
-        mirror.clear()
-        enqueue { [capture] in await capture.stop() }
-        Log.mirror.info("hidden")
-    }
-
-    /// The system stopped the stream while the mirror is shown. Restart with backoff; give
-    /// up and end the pin after repeated failures so a dead mirror never sits over the window.
-    private func restartAfterStop() {
-        guard shown else { return }
-        restartAttempts += 1
-        guard restartAttempts <= Self.maxRestartAttempts else {
-            Log.capture.error("stream failed \(self.restartAttempts - 1) times, unpinning")
+        switch effect {
+        case .show:
+            let frame = Geometry.appKitRect(fromCG: target.frame)
+            mirror.setFrame(frame, display: false)
+            mirror.orderFrontRegardless()
+            startCapture()
+            Log.mirror.info("shown at \(frame.debugDescription)")
+        case .stop:
+            enqueue { [capture] in await capture.stop() }
+            Log.mirror.info("hidden")
+        case .retry(let delay):
+            Log.capture.info("capture failed, retrying in \(Int(delay / .milliseconds(1))) ms")
+            scheduleRetry(after: delay)
+        case .giveUp:
+            Log.capture.error("capture failed \(MirrorStream.maxFailures + 1) times in a row, unpinning")
             onEnd(.captureFailed)
-            return
+        case nil:
+            break
         }
-        let delay = Double(restartAttempts) * 0.5
-        Log.capture.info("restarting stream in \(delay)s (attempt \(self.restartAttempts))")
+        return next
+    }
+
+    /// Starts the stream at the mirror's size and scale. A throw becomes `.startFailed`, so a
+    /// failed start counts toward the limit like a stopped stream.
+    private func startCapture() {
         let size = mirror.frame.size
         let scale = mirror.backingScaleFactor
         enqueue { [weak self, capture] in
-            try? await Task.sleep(for: .seconds(delay))
-            guard let self, self.shown else { return }
             do {
                 try await capture.start(pointSize: size, scale: scale)
             } catch {
-                Log.capture.error("restart: \(error.localizedDescription)")
+                Log.capture.error("start: \(error.localizedDescription)")
+                self?.send(.startFailed)
             }
+        }
+    }
+
+    private func scheduleRetry(after delay: Duration) {
+        retryTask?.cancel()
+        retryTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard let self, !Task.isCancelled else { return }
+            self.startCapture()
         }
     }
 
     // The mirror moved to a display with a different scale factor: the stream must deliver
     // frames at the new pixel size or they come out blurry.
     func windowDidChangeBackingProperties(_ notification: Notification) {
-        guard shown else { return }
+        guard stream != .hidden else { return }
         let size = mirror.frame.size
         let scale = mirror.backingScaleFactor
         enqueue { [capture] in await capture.resize(pointSize: size, scale: scale) }
@@ -141,14 +138,14 @@ final class Pin: NSObject, NSWindowDelegate {
     /// Stream stopped, mirror ordered out, observers removed. Idempotent. Called only by
     /// PinManager, the one place a pin ends.
     func end() {
-        hide()
+        send(.hide)
         mirror.orderOut(nil)
         placement = .notPlaced
         target.invalidate()
     }
 
     private func frameChanged(_ cgFrame: CGRect) {
-        guard shown else { return }
+        guard stream != .hidden else { return }
         let frame = Geometry.appKitRect(fromCG: cgFrame)
         let resized = frame.size != mirror.frame.size
         mirror.setFrame(frame, display: true)
@@ -163,7 +160,7 @@ final class Pin: NSObject, NSWindowDelegate {
     private func clicked(at point: CGPoint) {
         let cgPoint = Geometry.cgPoint(fromAppKit: point)
         Log.mirror.info("click at \(cgPoint.debugDescription), forwarding")
-        hide()
+        send(.hide)
         target.raise()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
             Self.postClick(at: cgPoint)

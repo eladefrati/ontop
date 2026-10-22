@@ -1,5 +1,67 @@
 // The pure decisions behind a Pin. Pin.swift executes them; the tests drive them directly.
 
+/// A pin's capture stream. The mirror's alpha is derived from it (`showsFrames`).
+enum MirrorStream: Equatable {
+    /// No stream. Mirror transparent and click-through.
+    case hidden
+    /// Stream requested, no frame yet since showing. Mirror still transparent. `failures`
+    /// counts failed starts since the last frame.
+    case starting(failures: Int)
+    /// Frames arriving. Mirror opaque.
+    case live
+    /// The stream died after frames had arrived. The last frame stays up while it restarts.
+    case restarting(failures: Int)
+
+    enum Event: Equatable {
+        case show, hide, frame, startFailed, stopped
+    }
+
+    enum Effect: Equatable {
+        /// Order the mirror front at the window's frame and start the stream.
+        case show
+        case stop
+        /// Start the stream again after this delay.
+        case retry(after: Duration)
+        /// Too many failures in a row: the pin must end.
+        case giveUp
+    }
+
+    /// Failures in a row that are retried; the next one gives up.
+    static let maxFailures = 3
+
+    var showsFrames: Bool {
+        switch self {
+        case .live, .restarting: true
+        case .hidden, .starting: false
+        }
+    }
+
+    /// Late callbacks (a frame, a failure or a stop after a hide) are ignored while hidden.
+    /// A failed start counts toward `maxFailures` exactly like a stopped stream; a frame
+    /// resets the count by moving to `.live`.
+    func on(_ event: Event) -> (next: MirrorStream, effect: Effect?) {
+        switch (self, event) {
+        case (.hidden, .show): (.starting(failures: 0), .show)
+        case (.hidden, _): (.hidden, nil)
+        case (_, .hide): (.hidden, .stop)
+        case (_, .frame): (.live, nil)
+        case (_, .show): (self, nil)
+        case (.starting(let failures), .startFailed), (.starting(let failures), .stopped):
+            Self.fail(after: failures, as: MirrorStream.starting)
+        case (.live, .startFailed), (.live, .stopped):
+            Self.fail(after: 0, as: MirrorStream.restarting)
+        case (.restarting(let failures), .startFailed), (.restarting(let failures), .stopped):
+            Self.fail(after: failures, as: MirrorStream.restarting)
+        }
+    }
+
+    private static func fail(after failures: Int, as state: (Int) -> MirrorStream) -> (next: MirrorStream, effect: Effect?) {
+        let count = failures + 1
+        guard count <= maxFailures else { return (.hidden, .giveUp) }
+        return (state(count), .retry(after: .milliseconds(500 * count)))
+    }
+}
+
 enum MirrorVisibility {
     /// Hidden while the real window is what the user sees: its app is frontmost and it is
     /// that app's focused window. Also hidden while the mirror's desktop is not the active
