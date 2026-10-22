@@ -10,7 +10,8 @@ enum PinFailure: Error, Equatable {
     case notCapturable(title: String)
     /// The window left the screen before ScreenCaptureKit listed it.
     case notOnScreen(title: String)
-    /// No standard Accessibility window matches it, so its moves can't be followed.
+    /// No standard Accessibility window matches it, or no observer can watch it, so its moves
+    /// can't be followed.
     case notAccessible(title: String)
     /// ScreenCaptureKit gave no window list, typically because Screen Recording was turned off.
     case contentUnavailable(title: String)

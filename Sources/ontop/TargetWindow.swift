@@ -44,7 +44,8 @@ final class TargetWindow {
             return nil
         }
         self.element = windows[index].element
-        installObserver()
+        // Without an observer the pin would never follow the window's moves or end on close.
+        guard installObserver() else { return nil }
     }
 
     /// True while the window is on screen. For a window on a desktop that means its desktop
@@ -74,7 +75,8 @@ final class TargetWindow {
 
     // MARK: Accessibility plumbing
 
-    private func installObserver() {
+    /// False when no observer could be created.
+    private func installObserver() -> Bool {
         var observer: AXObserver?
         let callback: AXObserverCallback = { _, _, notification, refcon in
             guard let refcon else { return }
@@ -84,7 +86,7 @@ final class TargetWindow {
         }
         guard AXObserverCreate(pid, callback, &observer) == .success, let observer else {
             Log.target.error("AXObserverCreate failed for pid \(self.pid)")
-            return
+            return false
         }
         let retained = Unmanaged.passRetained(self)
         self.refcon = retained
@@ -103,6 +105,7 @@ final class TargetWindow {
         }
         CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
         self.observer = observer
+        return true
     }
 
     private func handle(_ notification: String) {
