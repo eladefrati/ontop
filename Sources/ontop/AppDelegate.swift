@@ -11,7 +11,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func start() async {
-        await Onboarding.ensurePermissions()
+        // A process that is about to relaunch builds nothing: no second icon, no hotkey race.
+        guard await Onboarding.ensurePermissions() == .ready else {
+            Onboarding.relaunch()
+            return
+        }
         let manager = PinManager()
         let hotKey = HotKey()
         hotKey.onPress = { manager.pinFrontmostWindow() }
