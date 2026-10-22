@@ -43,6 +43,9 @@ struct PinContext {
 @MainActor
 final class PinManager {
     private var slots = PinSlots<Pin>()
+    /// Finds the window among ScreenCaptureKit's: the one await between a toggle and its store.
+    /// Tests pass their own, so they run the real toggle without ScreenCaptureKit.
+    private let lookup: @MainActor (WindowInfo) async -> Result<SCWindow, PinFailure>
     /// The last app other than ontop that was frontmost. The only frontmost source: the
     /// hotkey and "Pin Frontmost Window" (which may have activated ontop) find their window
     /// with it, and every pin reads it through `context`.
@@ -54,7 +57,8 @@ final class PinManager {
     /// A pin failed or ended without the user asking.
     var onFailure: (() -> Void)?
 
-    init() {
+    init(lookup: @escaping @MainActor (WindowInfo) async -> Result<SCWindow, PinFailure> = PinManager.shareableWindow) {
+        self.lookup = lookup
         // An accessory app never owns the menu bar, so if ontop is frontmost at launch the
         // menu bar's owner is the app the user was in.
         let own = ProcessInfo.processInfo.processIdentifier
@@ -117,7 +121,7 @@ final class PinManager {
     /// are created only after the ticket is known to be current, and no await comes between
     /// that check and the store.
     private func pin(_ ticket: PinSlots<Pin>.Ticket, _ window: WindowInfo) async {
-        let found = await Self.shareableWindow(window)
+        let found = await lookup(window)
         // Toggled off meanwhile: build nothing and say nothing.
         guard slots.isCurrent(ticket) else { return }
         do throws(PinFailure) {
@@ -133,7 +137,7 @@ final class PinManager {
     }
 
     /// The window as ScreenCaptureKit lists it among the on-screen windows.
-    private static func shareableWindow(_ window: WindowInfo) async -> Result<SCWindow, PinFailure> {
+    static func shareableWindow(_ window: WindowInfo) async -> Result<SCWindow, PinFailure> {
         do {
             let windows = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true).windows
             guard let found = windows.first(where: { $0.windowID == window.id }) else {
