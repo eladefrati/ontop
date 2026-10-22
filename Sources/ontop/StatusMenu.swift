@@ -18,6 +18,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         didSet {
             if case .ready(let manager, _) = mode {
                 manager.onChange = { [weak self] in self?.updateIcon() }
+                // The reason waits in the menu's first line.
+                manager.onFailure = { NSSound.beep() }
             }
             updateIcon()
         }
@@ -75,6 +77,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     private func addReady(_ manager: PinManager) {
+        if let failure = manager.failure {
+            let reason = NSMenuItem(title: failure.message, action: nil, keyEquivalent: "")
+            reason.isEnabled = false
+            menu.addItem(reason)
+        }
         let chord = Settings.chord
         let pinFront = NSMenuItem(title: "Pin Frontmost Window", action: #selector(pinFrontmost), keyEquivalent: chord.keyEquivalent)
         pinFront.keyEquivalentModifierMask = chord.flags
@@ -95,7 +102,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             for window in group {
                 let entry = NSMenuItem(title: window.title, action: #selector(toggleWindow(_:)), keyEquivalent: "")
                 entry.target = self
-                entry.representedObject = NSNumber(value: window.id)
+                entry.representedObject = window
                 entry.indentationLevel = 1
                 entry.state = manager.isPinned(window.id) ? .on : .off
                 menu.addItem(entry)
@@ -160,8 +167,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func toggleWindow(_ sender: NSMenuItem) {
-        guard let id = (sender.representedObject as? NSNumber)?.uint32Value else { return }
-        manager?.toggle(id)
+        guard let window = sender.representedObject as? WindowInfo else { return }
+        manager?.toggle(window)
     }
 
     @objc private func unpinAll() {

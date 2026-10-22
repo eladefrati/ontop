@@ -10,6 +10,8 @@ final class Pin: NSObject, NSWindowDelegate {
     }
 
     let target: TargetWindow
+    /// The window's title when it was pinned, for messages about this pin.
+    let title: String
     private let capture: WindowCapture
     private let mirror = MirrorWindow()
     private var placement: MirrorPlacement = .notPlaced
@@ -22,9 +24,10 @@ final class Pin: NSObject, NSWindowDelegate {
     /// Asks the manager to end this pin. A pin never ends itself.
     private let onEnd: (EndReason) -> Void
 
-    init(target: TargetWindow, capture: WindowCapture, context: @escaping () -> PinContext,
+    init(target: TargetWindow, title: String, capture: WindowCapture, context: @escaping () -> PinContext,
          onEnd: @escaping (EndReason) -> Void) {
         self.target = target
+        self.title = title
         self.capture = capture
         self.context = context
         self.onEnd = onEnd
