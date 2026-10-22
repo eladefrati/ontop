@@ -162,6 +162,7 @@ final class PinManager {
     }
 
     func unpinAll() {
+        failure = nil
         for pin in slots.removeAll() { finish(pin, .user) }
         onChange?()
     }
