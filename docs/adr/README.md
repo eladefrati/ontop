@@ -11,3 +11,4 @@ the ADR is current.
 | [0003](0003-mirrors-stay-on-their-desktop.md) | Mirrors stay on their window's desktop by default | Accepted |
 | [0004](0004-mirrors-are-visible-to-screen-capture.md) | Mirrors are visible to screen capture | Accepted |
 | [0005](0005-onboarding.md) | Onboarding relies on macOS's prompts and a relaunch | Accepted |
+| [0006](0006-click-forwarding.md) | Click forwarding replays the gesture once the window is in front | Accepted |
