@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Drive ontop on this Mac the way a user would and record evidence.
+"""Drive ontop the way a user would and record evidence.
 
-    verify.py doctor                 read-only: is this Mac ready for a run?
+    verify.py doctor                 read-only: is the Mac ready for a run?
     verify.py run [FEATURE ...]      build, launch, drive the features (default: all), clean up
     verify.py run --keep FEATURE     same, but leave the app, targets and cover up afterwards
     verify.py cleanup RUN_DIR        tear down what a run started (after --keep or a crash)

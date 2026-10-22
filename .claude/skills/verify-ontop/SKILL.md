@@ -1,9 +1,9 @@
 ---
 name: verify-ontop
-description: Verify ontop, the macOS 26 menu bar app in this repo that pins a window above all others through a ScreenCaptureKit mirror, by driving the real signed build on this Mac (hotkey, status menu, clicks, desktop switches) and capturing screencapture -l images plus the app's log. Use when a change to ontop needs proof in the running app, before calling an ontop fix done, or when asked to test pinning, unpinning, the mirror, click-through or Follow Across Desktops.
+description: Verify ontop, the macOS 26 menu bar app in this repo that pins a window above all others through a ScreenCaptureKit mirror, by driving the real signed build (hotkey, status menu, clicks, desktop switches) and capturing screencapture -l images plus the app's log. Use when a change to ontop needs proof in the running app, before calling an ontop fix done, or when asked to test pinning, unpinning, the mirror, click-through or Follow Across Desktops.
 ---
 
-# Verify ontop on this Mac
+# Verify ontop in the running app
 
 ontop is an `LSUIElement` app: no Dock icon, no main window. A user touches three things: the
 global hotkey (Ctrl+Option+P), the pin icon in the menu bar, and the mirror window that
@@ -11,7 +11,7 @@ floats over a pinned window while another app is in front. This skill drives all
 way a user would, with `scripts/probe` (CGEvent keys and clicks, Accessibility for the
 menu) and `scripts/verify.py` (the journeys), on throwaway windows only.
 
-Run everything from the repo root, `~/dev/ontop`.
+Run everything from the root of the repo.
 
 ## Rules
 
@@ -19,13 +19,15 @@ Run everything from the repo root, `~/dev/ontop`.
   own folder (`ontop-verify-a.txt`, `ontop-verify-b.txt`); "another app in front" is the
   probe's own cover window ("ontop-verify cover", an orange window). Never pin, click, close
   or raise a window the run did not open. The user's own TextEdit documents stay untouched.
-- **Never reset or edit TCC.** The terminal (iTerm) needs Accessibility and Screen
-  Recording; the build signed with the Apple Development certificate already holds the
-  app's grants. If either is missing, the doctor says so: ask the user to turn it on.
+- **Never reset or edit TCC.** The terminal that runs the skill needs Accessibility and
+  Screen Recording. ontop needs both as well. Grant them once to a build signed with your
+  Apple Development certificate. Later builds signed with the same certificate keep them.
+  If a permission is missing, the doctor or the launch step says so: ask the user to turn
+  it on.
 - **One ontop at a time.** The test build and the installed `/Applications/ontop.app` share
   the bundle id, the defaults and the hotkey. A run quits the installed instance through
-  its own menu only when it holds no pins, and reopens it in cleanup (agreed with the user
-  2026-10-21). With pins, the doctor refuses: the user is using it.
+  its own menu only when it holds no pins, and reopens it in cleanup. With pins, the doctor
+  refuses: the user is using it.
 - **Kill only what the run started**, by the pid recorded in the run's `state.json`.
 - The run switches desktops (Spaces) with Ctrl+Left/Right and toggles Follow Across
   Desktops; cleanup returns to the starting desktop and restores the setting.
@@ -139,7 +141,8 @@ does the same. Then run the doctor: it flags a leftover test build.
 - Desktop reporting uses private SkyLight calls (`CGSCopySpacesForWindows`,
   `CGSCopyManagedDisplaySpaces`) in the probe only. ADR-0001 keeps them out of the app.
 - Desktop switching needs Mission Control's "Move left/right a space" shortcuts
-  (Ctrl+Left/Right) enabled, as they are on this Mac.
+  (Ctrl+Left/Right) turned on in System Settings > Keyboard > Keyboard Shortcuts > Mission
+  Control.
 - One display tested. Mirrors over full-screen apps are not exercised.
 - Not covered yet: Change Shortcut, Launch at Login (it changes login items), moving or
   resizing a pinned window, closing or minimizing it (auto-unpin), stream restart.
