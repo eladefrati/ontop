@@ -76,35 +76,37 @@ final class PinManager {
     /// that check and the store.
     private func pin(_ ticket: PinSlots<Pin>.Ticket) async {
         let id = ticket.windowID
-        let windows: [SCWindow]?
+        let window: SCWindow?
         do {
-            windows = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true).windows
+            window = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
+                .windows.first { $0.windowID == id }
+            if window == nil { Log.app.error("window \(id) is no longer on screen") }
         } catch {
             Log.app.error("shareable content: \(error.localizedDescription)")
-            windows = nil
+            window = nil
         }
         guard slots.isCurrent(ticket) else { return }
-        guard let windows, let pin = makePin(id, from: windows) else {
+        guard let window, let pin = makePin(window) else {
             _ = slots.remove(id)
             onChange?()
             return
         }
         slots.store(pin, for: ticket)
-        Log.app.info("pinned \(pin.target.scWindow.title ?? "") (\(id))")
+        Log.app.info("pinned \(window.title ?? "") (\(id))")
         pin.evaluate()
         onChange?()
     }
 
-    private func makePin(_ id: CGWindowID, from windows: [SCWindow]) -> Pin? {
-        guard let window = windows.first(where: { $0.windowID == id }) else {
-            Log.app.error("window \(id) is no longer on screen")
-            return nil
-        }
-        guard let target = TargetWindow(scWindow: window) else {
+    private func makePin(_ window: SCWindow) -> Pin? {
+        let id = window.windowID
+        guard let pid = window.owningApplication?.processID,
+              let target = TargetWindow(windowID: id, pid: pid, frame: window.frame, title: window.title)
+        else {
             Log.app.error("could not track window \(id)")
             return nil
         }
         return Pin(target: target,
+                   capture: WindowCapture(window: window),
                    context: { [unowned self] in context },
                    onEnd: { [weak self] reason in self?.remove(id, reason) })
     }
@@ -128,7 +130,7 @@ final class PinManager {
     /// The single teardown path: every pin ends here, whatever ended it.
     private func finish(_ pin: Pin, _ reason: Pin.EndReason) {
         pin.end()
-        let id = pin.target.scWindow.windowID
+        let id = pin.target.windowID
         switch reason {
         case .user: Log.app.info("unpinned \(id)")
         case .windowGone: Log.app.info("unpinned \(id): window closed or minimized")

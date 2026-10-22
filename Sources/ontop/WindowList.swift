@@ -11,27 +11,19 @@ struct WindowInfo {
 
 enum WindowList {
     /// On-screen, normal-level, titled windows of other apps, front to back, limited to
-    /// windows the app exposes through Accessibility as standard windows. Those are the
-    /// only ones ontop can pin. The filter also drops the small helper window (subrole
-    /// AXDialog, titled "Window") that macOS adds to an app while one of its windows is
-    /// being captured.
+    /// windows that WindowMatch finds among their app's Accessibility windows. Those are the
+    /// only ones ontop can pin.
     @MainActor
     static func onScreen() -> [WindowInfo] {
         let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
         guard let raw = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return [] }
         let ownPID = ProcessInfo.processInfo.processIdentifier
-        var accessibleFrames: [pid_t: [CGRect]] = [:]
+        var axWindows: [pid_t: [AXWindowShape]] = [:]
         func isAccessible(_ window: WindowInfo) -> Bool {
-            if accessibleFrames[window.pid] == nil {
-                let app = AXUIElementCreateApplication(window.pid)
-                accessibleFrames[window.pid] = (AX.elements(app, kAXWindowsAttribute) ?? [])
-                    .filter { AX.string(of: $0, kAXSubroleAttribute) == kAXStandardWindowSubrole }
-                    .compactMap(AX.frame(of:))
+            if axWindows[window.pid] == nil {
+                axWindows[window.pid] = AX.windows(of: AXUIElementCreateApplication(window.pid)).map(\.shape)
             }
-            return accessibleFrames[window.pid]!.contains { frame in
-                abs(frame.origin.x - window.frame.origin.x) < 2 && abs(frame.origin.y - window.frame.origin.y) < 2
-                    && abs(frame.width - window.frame.width) < 2 && abs(frame.height - window.frame.height) < 2
-            }
+            return WindowMatch.index(frame: window.frame, title: window.title, in: axWindows[window.pid]!) != nil
         }
         return raw.compactMap { info -> WindowInfo? in
             guard let id = info[kCGWindowNumber as String] as? CGWindowID,

@@ -22,9 +22,10 @@ final class Pin: NSObject, NSWindowDelegate {
     /// Asks the manager to end this pin. A pin never ends itself.
     private let onEnd: (EndReason) -> Void
 
-    init(target: TargetWindow, context: @escaping () -> PinContext, onEnd: @escaping (EndReason) -> Void) {
+    init(target: TargetWindow, capture: WindowCapture, context: @escaping () -> PinContext,
+         onEnd: @escaping (EndReason) -> Void) {
         self.target = target
-        self.capture = WindowCapture(window: target.scWindow)
+        self.capture = capture
         self.context = context
         self.onEnd = onEnd
         super.init()
