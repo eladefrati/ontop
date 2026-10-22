@@ -66,20 +66,20 @@ struct WindowListTests {
     }
 
     @Test func aShownMirrorAboveTheWindowIsTheTopWindow() {
-        let raw = [entry(id: 4, layer: 3), entry(id: 5)]
-        #expect(WindowList.topWindow(at: CGPoint(x: 100, y: 100), in: raw) == 4)
+        let raw = [entry(id: 4, pid: 7, layer: 3), entry(id: 5)]
+        #expect(WindowList.topWindowOwner(at: CGPoint(x: 100, y: 100), in: raw) == 7)
     }
 
     @Test func aHiddenMirrorIsSkipped() {
-        let raw = [entry(id: 4, layer: 3, alpha: 0), entry(id: 5)]
-        #expect(WindowList.topWindow(at: CGPoint(x: 100, y: 100), in: raw) == 5)
+        let raw = [entry(id: 4, pid: 7, layer: 3, alpha: 0), entry(id: 5)]
+        #expect(WindowList.topWindowOwner(at: CGPoint(x: 100, y: 100), in: raw) == 1)
     }
 
     @Test func aPointOutsideEveryWindowHasNoTopWindow() {
-        #expect(WindowList.topWindow(at: CGPoint(x: 5, y: 5), in: [entry(id: 5)]) == nil)
+        #expect(WindowList.topWindowOwner(at: CGPoint(x: 5, y: 5), in: [entry(id: 5)]) == nil)
     }
 
     @Test func theBottomRightEdgeIsOutsideTheWindow() {
-        #expect(WindowList.topWindow(at: CGPoint(x: 310, y: 220), in: [entry(id: 5)]) == nil)
+        #expect(WindowList.topWindowOwner(at: CGPoint(x: 310, y: 220), in: [entry(id: 5)]) == nil)
     }
 }

@@ -170,8 +170,8 @@ final class Pin: NSObject, NSWindowDelegate {
 
     /// Every mouse button event on the mirror. The first down raises the real window; the
     /// gesture is recorded until every button is up, then delivered once the window's app is
-    /// frontmost and the window is the top one at the point, which also means the mirror has
-    /// cleared it.
+    /// frontmost and owns the top window at the point, which also means the mirror has cleared
+    /// it. That top window may be another window of the same app, such as the window's sheet.
     private func mouse(_ event: NSEvent) {
         guard let cgEvent = event.cgEvent else { return }
         if forwarder == nil {
@@ -188,7 +188,7 @@ final class Pin: NSObject, NSWindowDelegate {
         Task { [weak self] in
             guard let self else { return }
             let delivered = await forwarder.deliver(when: {
-                context().frontmostPID == target.pid && WindowList.topWindow(at: forwarder.point) == target.windowID
+                context().frontmostPID == target.pid && WindowList.topWindowOwner(at: forwarder.point) == target.pid
             })
             guard self.forwarder === forwarder else { return }
             self.forwarder = nil
