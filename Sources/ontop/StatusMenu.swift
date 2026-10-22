@@ -38,11 +38,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         updateIcon()
     }
 
-    /// Takes the icon out of the menu bar, just before a relaunch.
-    func remove() {
-        NSStatusBar.system.removeStatusItem(item)
-    }
-
     // Rebuilt every time it opens, so the window list is current.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
@@ -58,14 +53,18 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     /// While a permission is missing: what is missing and why, and a way to grant it. macOS
-    /// shows its own prompt once; this menu is ontop's explanation.
+    /// shows its own prompt once; this menu is ontop's explanation. For Screen Recording it
+    /// also offers a relaunch, since a running process never sees that grant.
     static func waitingItems(_ permission: Permission, target: AnyObject?) -> [NSMenuItem] {
         let missing = NSMenuItem(title: permission.title, action: nil, keyEquivalent: "")
         missing.subtitle = permission.reason
         missing.isEnabled = false
         let open = NSMenuItem(title: "Open System Settings\u{2026}", action: #selector(openPermissionSettings), keyEquivalent: "")
         open.target = target
-        return [missing, open, .separator()]
+        guard permission == .screenRecording else { return [missing, open, .separator()] }
+        let relaunch = NSMenuItem(title: "Relaunch ontop", action: #selector(relaunch), keyEquivalent: "")
+        relaunch.target = target
+        return [missing, open, relaunch, .separator()]
     }
 
     /// The version and Quit, in every mode.
@@ -167,6 +166,12 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     @objc private func openPermissionSettings() {
         guard case .waiting(let permission) = mode else { return }
         NSWorkspace.shared.open(permission.settingsURL)
+    }
+
+    // The icon goes first, so the menu bar never shows two icons.
+    @objc private func relaunch() {
+        NSStatusBar.system.removeStatusItem(item)
+        Onboarding.relaunch()
     }
 
     @objc private func pinFrontmost() {

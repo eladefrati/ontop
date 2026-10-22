@@ -47,4 +47,11 @@ struct WaitingMenuTests {
         #expect(open.isEnabled)
         #expect(open.action != nil)
     }
+
+    @Test func offersARelaunchOnlyForScreenRecording() throws {
+        let relaunch = try #require(StatusMenu.waitingItems(.screenRecording, target: nil).first { $0.title == "Relaunch ontop" })
+        #expect(relaunch.isEnabled)
+        #expect(relaunch.action != nil)
+        #expect(!StatusMenu.waitingItems(.accessibility, target: nil).contains { $0.title == "Relaunch ontop" })
+    }
 }

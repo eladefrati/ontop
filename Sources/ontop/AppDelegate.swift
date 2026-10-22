@@ -13,16 +13,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func start(_ statusMenu: StatusMenu) async {
-        switch await Onboarding.run(onWaiting: { statusMenu.mode = .waiting($0) }) {
-        case .relaunch:
-            // A process that is about to relaunch builds nothing, and its icon goes first, so
-            // the menu bar never shows two icons and two processes never race for the hotkey.
-            statusMenu.remove()
-            Onboarding.relaunch()
-        case .ready:
-            let manager = PinManager()
-            let hotKey = HotKey(onPress: { manager.pinFrontmostWindow() })
-            statusMenu.mode = .ready(manager, hotKey)
-        }
+        await Onboarding.run(onWaiting: { statusMenu.mode = .waiting($0) })
+        let manager = PinManager()
+        let hotKey = HotKey(onPress: { manager.pinFrontmostWindow() })
+        statusMenu.mode = .ready(manager, hotKey)
     }
 }

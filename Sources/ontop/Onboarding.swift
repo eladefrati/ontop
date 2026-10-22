@@ -12,8 +12,9 @@ enum Permission: Equatable {
         }
     }
 
-    /// Asks macOS for the permission. Its prompt is the one dialog per permission and is
-    /// what lists ontop in Privacy & Security. macOS decides whether the prompt appears.
+    /// Asks macOS for the permission. Its prompt is the one dialog per permission; macOS
+    /// decides whether it appears. For Screen Recording on macOS 26 the request does not
+    /// add ontop to the Privacy & Security list, so the user may have to add it with +.
     func request() {
         switch self {
         case .accessibility:
@@ -42,56 +43,54 @@ enum Permission: Equatable {
     var reason: String {
         switch self {
         case .accessibility: "To bring a pinned window forward when you click its mirror and follow it when it moves."
-        case .screenRecording: "To list windows and show a pinned window above other apps. ontop relaunches once it is on."
+        case .screenRecording: "To list windows and show a pinned window above other apps. Add ontop with + if it isn't listed, turn it on, then choose Quit & Reopen."
         }
     }
 }
 
-/// Walks the user through the two permissions. Accessibility takes effect at once;
-/// Screen Recording takes effect only in a new process, so ontop relaunches itself.
+/// Walks the user through the two permissions. Accessibility takes effect at once.
+/// ontop does not detect a Screen Recording grant in a running process and relies on a
+/// relaunch: macOS's Quit & Reopen, the menu's Relaunch ontop, or Quit and open.
 @MainActor
 enum Onboarding {
-    enum Outcome {
-        /// Every permission works in this process.
-        case ready
-        /// Screen Recording was granted after launch and works only in a new process. The
-        /// caller builds nothing and calls `relaunch()`.
-        case relaunch
-    }
-
     enum Step: Equatable {
         case needs(Permission)
-        case done(Outcome)
+        case ready
     }
 
-    /// Accessibility first, then Screen Recording. A process that launched without Screen
-    /// Recording never gets it, so once both are granted it relaunches instead of starting.
-    static func step(accessibility: Bool, screenRecording: Bool, screenRecordingWasMissingAtLaunch: Bool) -> Step {
+    /// Accessibility first, then Screen Recording.
+    static func step(accessibility: Bool, screenRecording: Bool) -> Step {
         if !accessibility { return .needs(.accessibility) }
         if !screenRecording { return .needs(.screenRecording) }
-        return .done(screenRecordingWasMissingAtLaunch ? .relaunch : .ready)
+        return .ready
     }
 
     /// Returns at once when both permissions are granted. Otherwise, for each missing one in
-    /// turn, reports it through `onWaiting`, asks macOS for it once, and checks every second
-    /// until it is granted. ontop shows no dialog of its own: the status menu explains what
-    /// is missing and offers Quit throughout.
-    static func run(onWaiting: (Permission) -> Void) async -> Outcome {
-        let screenRecordingWasMissingAtLaunch = !Permission.screenRecording.isGranted
-        var asked: Permission?
+    /// turn, reports it through `onWaiting` and asks macOS for it once. Accessibility is then
+    /// checked every second until it is granted. Screen Recording is not checked again:
+    /// `CGPreflightScreenCaptureAccess` keeps its launch value for the life of the process,
+    /// and asking ScreenCaptureKit instead makes macOS prompt on every check, so `run` never
+    /// returns and the process waits for the user to relaunch it. ontop shows no dialog of
+    /// its own: the status menu explains what is missing and offers Quit throughout.
+    static func run(onWaiting: (Permission) -> Void) async {
+        var askedForAccessibility = false
         while true {
             switch step(accessibility: Permission.accessibility.isGranted,
-                        screenRecording: Permission.screenRecording.isGranted,
-                        screenRecordingWasMissingAtLaunch: screenRecordingWasMissingAtLaunch) {
-            case .needs(let permission):
-                if permission != asked {
-                    asked = permission
-                    onWaiting(permission)
-                    permission.request()
+                        screenRecording: Permission.screenRecording.isGranted) {
+            case .needs(.accessibility):
+                if !askedForAccessibility {
+                    askedForAccessibility = true
+                    onWaiting(.accessibility)
+                    Permission.accessibility.request()
                 }
                 try? await Task.sleep(for: .seconds(1))
-            case .done(let outcome):
-                return outcome
+            case .needs(.screenRecording):
+                onWaiting(.screenRecording)
+                Permission.screenRecording.request()
+                // Never resumed: only a relaunch ends this wait.
+                await withUnsafeContinuation { (_: UnsafeContinuation<Void, Never>) in }
+            case .ready:
+                return
             }
         }
     }
@@ -99,7 +98,7 @@ enum Onboarding {
     /// Opens a new instance of the bundle and terminates this one once it has started, or
     /// failed to start (logged; the user then opens ontop by hand).
     static func relaunch() {
-        Log.app.info("screen recording granted, relaunching")
+        Log.app.info("relaunching")
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = true
         NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, error in
