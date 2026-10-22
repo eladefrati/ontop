@@ -1,7 +1,8 @@
 import AppKit
 
-/// One pinned window: shows the mirror while another app is in front, hides it while the
-/// pinned window is frontmost, and hands clicks on the mirror to the real window.
+/// One pinned window: places its mirror on the right desktops, shows the mirror while
+/// another app is in front, hides it while the pinned window is frontmost, and hands clicks
+/// on the mirror to the real window.
 @MainActor
 final class Pin: NSObject, NSWindowDelegate {
     enum EndReason {
@@ -11,6 +12,7 @@ final class Pin: NSObject, NSWindowDelegate {
     let target: TargetWindow
     private let capture: WindowCapture
     private let mirror = MirrorWindow()
+    private var placement: MirrorPlacement = .notPlaced
     private var shown = false
     private var awaitingFirstFrame = false
     private var restartAttempts = 0
@@ -28,9 +30,6 @@ final class Pin: NSObject, NSWindowDelegate {
         self.onEnd = onEnd
         super.init()
         mirror.delegate = self
-        // Ordered in now, invisible, so the mirror belongs to the desktop the window is on.
-        mirror.setFrame(Geometry.appKitRect(fromCG: target.frame), display: false)
-        mirror.orderFrontRegardless()
         capture.onFrame = { [weak self] surface in
             guard let self else { return }
             self.mirror.display(surface)
@@ -46,19 +45,34 @@ final class Pin: NSObject, NSWindowDelegate {
         target.onGone = { [weak self] in self?.onEnd(.windowGone) }
     }
 
-    /// Shows or hides the mirror by MirrorVisibility. The manager calls it on every
-    /// activation, desktop switch and Follow change; the pin itself on focus changes.
+    /// Places the mirror by MirrorPlacement, then shows or hides it by MirrorVisibility. The
+    /// first call orders the mirror in. The manager calls it on every activation, desktop
+    /// switch and Follow change; the pin itself on focus changes.
     func evaluate() {
-        let realWindowInFront = context().frontmostPID == target.pid && target.isFocusedInApp
-        if MirrorVisibility.wanted(realWindowInFront: realWindowInFront, onActiveDesktop: mirror.isOnActiveSpace) {
+        let context = context()
+        let (next, order) = placement.next(followsDesktops: context.followsDesktops,
+                                           windowOnScreen: { target.isOnScreen })
+        mirror.setFollowsDesktops(context.followsDesktops)
+        switch order {
+        case .orderIn:
+            // Joins the active desktop, which is the window's or, when following, every one.
+            mirror.setFrame(Geometry.appKitRect(fromCG: target.frame), display: false)
+            mirror.orderFrontRegardless()
+        case .orderOut:
+            hide()
+            mirror.orderOut(nil)
+        case .none:
+            break
+        }
+        placement = next
+        let realWindowInFront = context.frontmostPID == target.pid && target.isFocusedInApp
+        let onActiveDesktop = placement.isOnActiveDesktop(windowOnScreen: { target.isOnScreen },
+                                                          mirrorOnActiveSpace: { mirror.isOnActiveSpace })
+        if MirrorVisibility.wanted(realWindowInFront: realWindowInFront, onActiveDesktop: onActiveDesktop) {
             show()
         } else {
             hide()
         }
-    }
-
-    func setFollowsDesktops(_ follows: Bool) {
-        mirror.setFollowsDesktops(follows)
     }
 
     func show() {
@@ -129,6 +143,7 @@ final class Pin: NSObject, NSWindowDelegate {
     func end() {
         hide()
         mirror.orderOut(nil)
+        placement = .notPlaced
         target.invalidate()
     }
 

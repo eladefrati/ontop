@@ -11,7 +11,6 @@ final class MirrorWindow: NSWindow {
         level = .floating
         alphaValue = 0
         ignoresMouseEvents = true
-        setFollowsDesktops(Settings.followsDesktops)
         isOpaque = false
         backgroundColor = .clear
         hasShadow = false
@@ -28,7 +27,8 @@ final class MirrorWindow: NSWindow {
 
     /// On every desktop and over full-screen apps, or on the desktop it was ordered in on.
     func setFollowsDesktops(_ follows: Bool) {
-        collectionBehavior = follows ? [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle] : [.ignoresCycle]
+        let behavior: NSWindow.CollectionBehavior = follows ? [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle] : [.ignoresCycle]
+        if collectionBehavior != behavior { collectionBehavior = behavior }
     }
 
     /// The window stays ordered in so it keeps its desktop; visibility is alpha.

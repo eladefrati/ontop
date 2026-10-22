@@ -1,10 +1,11 @@
 import AppKit
 import ScreenCaptureKit
 
-/// What every pin reads to show its mirror. Built only by PinManager.
+/// What every pin reads to place and show its mirror. Built only by PinManager.
 struct PinContext {
     /// The app the user is looking at; never ontop itself.
     var frontmostPID: pid_t?
+    var followsDesktops: Bool
 }
 
 /// Owns every pin and decides, on each focus change, which mirrors are shown.
@@ -43,10 +44,7 @@ final class PinManager {
         get { Settings.followsDesktops }
         set {
             Settings.followsDesktops = newValue
-            for pin in slots.values {
-                pin.setFollowsDesktops(newValue)
-                pin.evaluate()
-            }
+            for pin in slots.values { pin.evaluate() }
         }
     }
 
@@ -117,7 +115,7 @@ final class PinManager {
     }
 
     private var context: PinContext {
-        PinContext(frontmostPID: frontmostPID)
+        PinContext(frontmostPID: frontmostPID, followsDesktops: Settings.followsDesktops)
     }
 
     /// A pin asked to end, or its app quit.

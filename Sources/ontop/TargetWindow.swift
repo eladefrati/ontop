@@ -45,6 +45,13 @@ final class TargetWindow {
         installObserver()
     }
 
+    /// True while the window is on screen. For a window on a desktop that means its desktop
+    /// is the active one.
+    var isOnScreen: Bool {
+        let info = CGWindowListCopyWindowInfo(.optionIncludingWindow, scWindow.windowID) as? [[String: Any]]
+        return info?.first?[kCGWindowIsOnscreen as String] as? Bool ?? false
+    }
+
     /// Stops observing and releases the refcon's retain. Idempotent. Until it is called the
     /// target keeps itself alive.
     func invalidate() {

@@ -34,7 +34,7 @@ Preconditions:
 
 ## Gotchas
 
-- 2026-10-21, four runs: turning Follow off while on another desktop moves every mirror to the active desktop (A reported on [4], not its home [3]); back home, A is off screen and its window has no mirror there. The checks "after Follow off, mirror A is not on screen on the away desktop" and "back home, mirror A is shown on the home desktop" fail; that is the app's behaviour, not the journey's. Inference: removing `.canJoinAllSpaces` leaves a window on the current Space; the app does not re-order it onto its window's desktop.
+- Before the fix, 2026-10-21, four runs: turning Follow off while on another desktop moved every mirror to the active desktop (A reported on [4], not its home [3]); back home, A was off screen and its window had no mirror there. Removing `.canJoinAllSpaces` leaves a window on the current Space. Now a mirror whose window is off screen when Follow turns off is ordered out, and ordered in again when its window's desktop is next active, since a window joins the desktop that is active when it is ordered in.
 - The window server keeps reporting an ordered-out window's last desktop, so a mirror that is not on any desktop still reports one. The Follow-off checks judge mirror A by its on-screen state, away and then at home, not by its desktop list.
 - Desktops are numbered 1.. in Mission Control order on the main display; the probe reads them with private SkyLight calls (verification only).
 - Raising a window on another desktop makes macOS switch to that desktop. The journey switches first and raises only windows on the active desktop.
