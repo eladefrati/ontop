@@ -21,13 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Onboarding.relaunch()
         case .ready:
             let manager = PinManager()
-            let hotKey = HotKey()
-            hotKey.onPress = { manager.pinFrontmostWindow() }
-            do {
-                try hotKey.register(Settings.chord)
-            } catch {
-                Log.app.error("hotkey \(Settings.chord.display) unavailable: \(String(describing: error))")
-            }
+            let hotKey = HotKey(onPress: { manager.pinFrontmostWindow() })
             statusMenu.mode = .ready(manager, hotKey)
         }
     }

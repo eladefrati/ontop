@@ -51,8 +51,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             break
         case .waiting(let permission):
             for item in Self.waitingItems(permission, target: self) { menu.addItem(item) }
-        case .ready(let manager, _):
-            addReady(manager)
+        case .ready(let manager, let hotKey):
+            addReady(manager, hotKey)
         }
         for item in Self.footer() { menu.addItem(item) }
     }
@@ -76,13 +76,13 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         return [about, NSMenuItem(title: "Quit ontop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")]
     }
 
-    private func addReady(_ manager: PinManager) {
+    private func addReady(_ manager: PinManager, _ hotKey: HotKey) {
         if let failure = manager.failure {
             let reason = NSMenuItem(title: failure.message, action: nil, keyEquivalent: "")
             reason.isEnabled = false
             menu.addItem(reason)
         }
-        let chord = Settings.chord
+        let chord = hotKey.chord
         let pinFront = NSMenuItem(title: "Pin Frontmost Window", action: #selector(pinFrontmost), keyEquivalent: chord.keyEquivalent)
         pinFront.keyEquivalentModifierMask = chord.flags
         pinFront.target = self
@@ -194,21 +194,17 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func changeShortcut() {
         guard case .ready(_, let hotKey) = mode else { return }
-        let window = ChordRecorderWindow(current: Settings.chord)
+        let window = ChordRecorderWindow(current: hotKey.chord)
         recorder = window
         window.present { [weak self] chord in
             guard let self else { return }
             self.recorder = nil
-            guard let chord, chord != Settings.chord else { return }
-            let previous = Settings.chord
+            guard let chord else { return }
             do {
-                try hotKey.register(chord)
-                Settings.chord = chord
+                try hotKey.change(to: chord)
             } catch HotKey.RegistrationError.inUse {
-                try? hotKey.register(previous)
-                Self.alert("Shortcut in use", "\(chord.display) is already taken by another app. The shortcut stays \(previous.display).")
+                Self.alert("Shortcut in use", "\(chord.display) is already taken by another app. The shortcut stays \(hotKey.chord.display).")
             } catch {
-                try? hotKey.register(previous)
                 Self.alert("Could not set shortcut", String(describing: error))
             }
         }
