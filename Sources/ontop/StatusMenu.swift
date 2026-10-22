@@ -25,7 +25,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         }
     }
 
-    private let item: NSStatusItem
+    private var item: NSStatusItem
     private let menu = NSMenu()
     private var recorder: ChordRecorderWindow?
 
@@ -168,10 +168,16 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         NSWorkspace.shared.open(permission.settingsURL)
     }
 
-    // The icon goes first, so the menu bar never shows two icons.
+    // The icon goes first, so the menu bar never shows two icons. If the new instance does not
+    // start, this one keeps running and the icon comes back with the same menu.
     @objc private func relaunch() {
         NSStatusBar.system.removeStatusItem(item)
-        Onboarding.relaunch()
+        Onboarding.relaunch(onFailure: { [weak self] in
+            guard let self else { return }
+            item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+            item.menu = menu
+            updateIcon()
+        })
     }
 
     @objc private func pinFrontmost() {

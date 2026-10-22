@@ -95,17 +95,19 @@ enum Onboarding {
         }
     }
 
-    /// Opens a new instance of the bundle and terminates this one once it has started, or
-    /// failed to start (logged; the user then opens ontop by hand).
-    static func relaunch() {
+    /// Opens a new instance of the bundle and terminates this one once it has started. When it
+    /// fails to start, logs why, keeps this one running and calls `onFailure`.
+    static func relaunch(onFailure: @escaping @MainActor () -> Void) {
         Log.app.info("relaunching")
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = true
         NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, error in
             if let error {
                 Log.app.error("relaunch failed: \(error.localizedDescription)")
+                DispatchQueue.main.async { onFailure() }
+            } else {
+                DispatchQueue.main.async { NSApp.terminate(nil) }
             }
-            DispatchQueue.main.async { NSApp.terminate(nil) }
         }
     }
 }
