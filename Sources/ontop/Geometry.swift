@@ -21,9 +21,4 @@ enum Geometry {
             height: rect.height
         )
     }
-
-    @MainActor
-    static func cgPoint(fromAppKit point: CGPoint) -> CGPoint {
-        CGPoint(x: point.x, y: primaryHeight - point.y)
-    }
 }

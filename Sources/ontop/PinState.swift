@@ -65,9 +65,11 @@ enum MirrorStream: Equatable {
 enum MirrorVisibility {
     /// Hidden while the real window is what the user sees: its app is frontmost and it is
     /// that app's focused window. Also hidden while the mirror's desktop is not the active
-    /// one, since nobody could see it and the stream would run for nothing. Shown otherwise.
-    static func wanted(realWindowInFront: Bool, onActiveDesktop: Bool) -> Bool {
-        !realWindowInFront && onActiveDesktop
+    /// one, since nobody could see it and the stream would run for nothing. Shown otherwise,
+    /// and while a gesture that began on the mirror still has a button down, so the rest of
+    /// it lands on the mirror too.
+    static func wanted(realWindowInFront: Bool, onActiveDesktop: Bool, recordingClick: Bool) -> Bool {
+        (!realWindowInFront || recordingClick) && onActiveDesktop
     }
 }
 

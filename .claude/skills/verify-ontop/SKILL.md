@@ -95,6 +95,9 @@ $P ax-raise <pid> "<title>"         # that window to the front of its app, the a
 $P ax-close <pid> "<title>"         # press its close button
 $P ax-caret <pid> "<title>"         # insertion point offset in the window's text area
 $P click x y                        # left click at global top-left coordinates; reports what was on top
+$P click x y --right                # right-click; also --count 2 (double-click), --flags shift,ctrl,opt,cmd
+$P drag x1 y1 x2 y2                 # left-button drag; reports what was on top at the start
+$P key <keycode> [--flags ...]      # one key press through the HID event tap, e.g. 53 for Escape
 $P space left|right                 # Ctrl+Arrow desktop switch, waits for it
 $P desktops                         # active desktop and every desktop's space id
 $P cover x y w h [--title T]        # throwaway frontmost app window; blocks, kill its pid

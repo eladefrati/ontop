@@ -28,6 +28,25 @@ enum WindowList {
         accessible(candidates().filter { $0.pid == pid }).first
     }
 
+    /// The window a click at a CG global point lands on: the top on-screen window there with
+    /// alpha above 0. A hidden mirror is skipped; a shown one is the answer.
+    static func topWindow(at point: CGPoint) -> CGWindowID? {
+        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        return topWindow(at: point, in: CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] ?? [])
+    }
+
+    /// The first window, front to back and of any layer, with alpha above 0 whose bounds
+    /// contain `point`.
+    static func topWindow(at point: CGPoint, in raw: [[String: Any]]) -> CGWindowID? {
+        raw.first { info in
+            guard (info[kCGWindowAlpha as String] as? Double ?? 1) > 0,
+                  let bounds = info[kCGWindowBounds as String] as? NSDictionary,
+                  let rect = CGRect(dictionaryRepresentation: bounds)
+            else { return false }
+            return rect.contains(point)
+        }?[kCGWindowNumber as String] as? CGWindowID
+    }
+
     private static func candidates() -> [WindowInfo] {
         let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
         let raw = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] ?? []

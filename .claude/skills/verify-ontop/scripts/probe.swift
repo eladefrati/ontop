@@ -155,16 +155,67 @@ func postKey(_ keyCode: CGKeyCode, flags: CGEventFlags) {
     up.post(tap: .cghidEventTap)
 }
 
-func postClick(_ point: CGPoint) {
-    let source = CGEventSource(stateID: .hidSystemState)
-    for type in [CGEventType.mouseMoved, .leftMouseDown, .leftMouseUp] {
-        guard let e = CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: point, mouseButton: .left) else {
-            fail("could not create mouse event")
-        }
-        if type != .mouseMoved { e.setIntegerValueField(.mouseEventClickState, value: 1) }
-        e.post(tap: .cghidEventTap)
-        sleepMs(30)
+func postMouse(_ type: CGEventType, _ point: CGPoint, button: CGMouseButton = .left, clickState: Int64 = 1, flags: CGEventFlags = []) {
+    guard let e = CGEvent(mouseEventSource: CGEventSource(stateID: .hidSystemState), mouseType: type,
+                          mouseCursorPosition: point, mouseButton: button) else {
+        fail("could not create mouse event")
     }
+    if type != .mouseMoved { e.setIntegerValueField(.mouseEventClickState, value: clickState) }
+    e.flags = flags
+    e.post(tap: .cghidEventTap)
+}
+
+/// `count` clicks at one point, 30 ms down to up and 80 ms between clicks: a quick double-click.
+func postClick(_ point: CGPoint, button: CGMouseButton = .left, count: Int = 1, flags: CGEventFlags = []) {
+    let (down, up): (CGEventType, CGEventType) = button == .right ? (.rightMouseDown, .rightMouseUp) : (.leftMouseDown, .leftMouseUp)
+    postMouse(.mouseMoved, point)
+    sleepMs(30)
+    for i in 1...count {
+        postMouse(down, point, button: button, clickState: Int64(i), flags: flags)
+        sleepMs(30)
+        postMouse(up, point, button: button, clickState: Int64(i), flags: flags)
+        sleepMs(i < count ? 80 : 30)
+    }
+}
+
+/// Left button down at `from`, ten drags to `to` 20 ms apart, up at `to`.
+func postDrag(from: CGPoint, to: CGPoint) {
+    postMouse(.mouseMoved, from)
+    sleepMs(30)
+    postMouse(.leftMouseDown, from)
+    for i in 1...10 {
+        sleepMs(20)
+        let t = CGFloat(i) / 10
+        postMouse(.leftMouseDragged, CGPoint(x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t))
+    }
+    sleepMs(20)
+    postMouse(.leftMouseUp, to)
+    sleepMs(30)
+}
+
+func eventFlags(_ list: String?) -> CGEventFlags {
+    var flags: CGEventFlags = []
+    for name in (list ?? "").split(separator: ",") {
+        switch name {
+        case "shift": flags.insert(.maskShift)
+        case "ctrl": flags.insert(.maskControl)
+        case "opt": flags.insert(.maskAlternate)
+        case "cmd": flags.insert(.maskCommand)
+        default: fail("unknown modifier \(name)")
+        }
+    }
+    return flags
+}
+
+/// The top window at a point, as the window server stacks them: the first on-screen window
+/// with alpha above 0 whose bounds contain it.
+func topWindow(at point: CGPoint) -> [String: Any] {
+    let top = windowList(all: false).first { info in
+        guard (info[kCGWindowAlpha as String] as? Double ?? 1) > 0,
+              let b = info[kCGWindowBounds as String] as? [String: CGFloat] else { return false }
+        return CGRect(x: b["X"]!, y: b["Y"]!, width: b["Width"]!, height: b["Height"]!).contains(point)
+    }
+    return top.map(windowJSON) ?? [:]
 }
 
 // MARK: Menu (ontop's status item, through Accessibility)
@@ -263,7 +314,7 @@ final class CoverDelegate: NSObject, NSApplicationDelegate {
 
 var args = Array(CommandLine.arguments.dropFirst())
 guard let command = args.first else {
-    fail("usage: probe <windows|front|activate|hotkey|space|desktops|menu|click|ax-windows|ax-place|ax-raise|ax-close|ax-caret|cover|trusted> ...")
+    fail("usage: probe <windows|front|activate|hotkey|key|space|desktops|menu|click|drag|ax-windows|ax-place|ax-raise|ax-close|ax-caret|cover|trusted> ...")
 }
 args.removeFirst()
 
@@ -369,17 +420,30 @@ case "menu":
     }
 
 case "click":
-    // probe click <x> <y>   global top-left coordinates, as CGWindowList bounds
+    // probe click <x> <y> [--right] [--count N] [--flags shift,ctrl,opt,cmd]
+    // global top-left coordinates, as CGWindowList bounds
     guard let x = Double(positional(0, "x")), let y = Double(positional(1, "y")) else { fail("x and y must be numbers") }
     let point = CGPoint(x: x, y: y)
     // Report what is on top at that point before clicking, so the evidence says what was hit.
-    let top = windowList(all: false).first { info in
-        guard (info[kCGWindowAlpha as String] as? Double ?? 1) > 0,
-              let b = info[kCGWindowBounds as String] as? [String: CGFloat] else { return false }
-        return CGRect(x: b["X"]!, y: b["Y"]!, width: b["Width"]!, height: b["Height"]!).contains(point)
-    }
-    postClick(point)
-    emit(["clicked": [x, y], "topWindowBeforeClick": top.map(windowJSON) ?? [:]])
+    let top = topWindow(at: point)
+    postClick(point, button: args.contains("--right") ? .right : .left, count: option("--count").flatMap(Int.init) ?? 1,
+              flags: eventFlags(option("--flags")))
+    emit(["clicked": [x, y], "topWindowBeforeClick": top])
+
+case "drag":
+    // probe drag <x1> <y1> <x2> <y2>   left button, global top-left coordinates
+    let n = (0...3).map { Double(positional($0, "points")) ?? .nan }
+    guard !n.contains(where: \.isNaN) else { fail("points must be numbers") }
+    let from = CGPoint(x: n[0], y: n[1])
+    let top = topWindow(at: from)
+    postDrag(from: from, to: CGPoint(x: n[2], y: n[3]))
+    emit(["dragged": [n[0], n[1], n[2], n[3]], "topWindowBeforeDrag": top])
+
+case "key":
+    // probe key <keycode> [--flags shift,ctrl,opt,cmd]   one key press through the HID event tap
+    guard let code = CGKeyCode(positional(0, "keycode")) else { fail("keycode must be a number") }
+    postKey(code, flags: eventFlags(option("--flags")))
+    emit(["pressed": Int(code)])
 
 case "ax-windows":
     // probe ax-windows <pid>

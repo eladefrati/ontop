@@ -17,6 +17,10 @@ struct PinFailureTests {
         #expect(PinFailure.captureStopped(title: "Notes").message.hasPrefix("\u{201C}Notes\u{201D} is no longer pinned: "))
     }
 
+    @Test func anUndeliveredClickNamesTheWindow() {
+        #expect(PinFailure.clickNotDelivered(title: "Notes").message.hasPrefix("Could not click in \u{201C}Notes\u{201D}: "))
+    }
+
     @Test func nothingInFrontSaysThereIsNothingToPin() {
         #expect(PinFailure.noWindow.message.hasPrefix("Nothing to pin: "))
     }

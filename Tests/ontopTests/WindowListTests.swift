@@ -64,4 +64,22 @@ struct WindowListTests {
     @Test func keepsTheWindowServersFrontToBackOrder() {
         #expect(ids([entry(id: 9), entry(id: 3), entry(id: 7)]) == [9, 3, 7])
     }
+
+    @Test func aShownMirrorAboveTheWindowIsTheTopWindow() {
+        let raw = [entry(id: 4, layer: 3), entry(id: 5)]
+        #expect(WindowList.topWindow(at: CGPoint(x: 100, y: 100), in: raw) == 4)
+    }
+
+    @Test func aHiddenMirrorIsSkipped() {
+        let raw = [entry(id: 4, layer: 3, alpha: 0), entry(id: 5)]
+        #expect(WindowList.topWindow(at: CGPoint(x: 100, y: 100), in: raw) == 5)
+    }
+
+    @Test func aPointOutsideEveryWindowHasNoTopWindow() {
+        #expect(WindowList.topWindow(at: CGPoint(x: 5, y: 5), in: [entry(id: 5)]) == nil)
+    }
+
+    @Test func theBottomRightEdgeIsOutsideTheWindow() {
+        #expect(WindowList.topWindow(at: CGPoint(x: 310, y: 220), in: [entry(id: 5)]) == nil)
+    }
 }

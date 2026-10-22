@@ -16,6 +16,8 @@ enum PinFailure: Error, Equatable {
     case contentUnavailable(title: String)
     /// The capture failed `MirrorStream.maxFailures + 1` times in a row and the pin ended.
     case captureStopped(title: String)
+    /// A click on the mirror was dropped: the window did not come to the front in time.
+    case clickNotDelivered(title: String)
 
     var message: String {
         switch self {
@@ -25,6 +27,7 @@ enum PinFailure: Error, Equatable {
         case .notAccessible(let title): "Could not pin \u{201C}\(title)\u{201D}: ontop can't follow it through Accessibility"
         case .contentUnavailable(let title): "Could not pin \u{201C}\(title)\u{201D}: no window list from macOS; check Screen Recording"
         case .captureStopped(let title): "\u{201C}\(title)\u{201D} is no longer pinned: macOS stopped capturing it"
+        case .clickNotDelivered(let title): "Could not click in \u{201C}\(title)\u{201D}: it did not come to the front"
         }
     }
 }
@@ -154,6 +157,7 @@ final class PinManager {
                    title: window.title,
                    capture: WindowCapture(window: scWindow),
                    context: { [unowned self] in context },
+                   report: { [weak self] failure in self?.report(failure) },
                    onEnd: { [weak self] reason in self?.remove(id, reason) })
     }
 

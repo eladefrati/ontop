@@ -3,8 +3,8 @@ import IOSurface
 
 /// The floating window that shows the captured frames over the real window's position.
 final class MirrorWindow: NSWindow {
-    /// Called with the click location in AppKit screen coordinates.
-    var onClick: ((CGPoint) -> Void)?
+    /// Every mouse button event on the mirror: downs, drags and ups of any button.
+    var onMouse: ((NSEvent) -> Void)?
 
     init() {
         super.init(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
@@ -15,7 +15,7 @@ final class MirrorWindow: NSWindow {
         backgroundColor = .clear
         hasShadow = false
         isReleasedWhenClosed = false
-        let view = MirrorView()
+        let view = NSView()
         view.wantsLayer = true
         view.layer?.contentsGravity = .resize
         contentView = view
@@ -24,6 +24,18 @@ final class MirrorWindow: NSWindow {
     // The mirror never takes focus; focus belongs to the real window after a click.
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
+
+    // Mouse button events go to `onMouse` and never reach a view.
+    override func sendEvent(_ event: NSEvent) {
+        switch event.type {
+        case .leftMouseDown, .leftMouseDragged, .leftMouseUp,
+             .rightMouseDown, .rightMouseDragged, .rightMouseUp,
+             .otherMouseDown, .otherMouseDragged, .otherMouseUp:
+            onMouse?(event)
+        default:
+            super.sendEvent(event)
+        }
+    }
 
     /// On every desktop and over full-screen apps, or on the desktop it was ordered in on.
     func setFollowsDesktops(_ follows: Bool) {
@@ -43,13 +55,5 @@ final class MirrorWindow: NSWindow {
 
     func clear() {
         contentView?.layer?.contents = nil
-    }
-}
-
-private final class MirrorView: NSView {
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    override func mouseDown(with event: NSEvent) {
-        (window as? MirrorWindow)?.onClick?(NSEvent.mouseLocation)
     }
 }

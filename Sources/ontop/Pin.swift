@@ -16,20 +16,25 @@ final class Pin: NSObject, NSWindowDelegate {
     private let mirror = MirrorWindow()
     private var placement: MirrorPlacement = .notPlaced
     private var stream: MirrorStream = .hidden
+    /// The gesture that began on the mirror, until it is delivered or dropped.
+    private var forwarder: ClickForwarder?
     /// Serializes start, stop and resize so a stop never races a start in flight.
     private var captureTask: Task<Void, Never>?
     /// The pending start after a failure. Cancelled whenever the stream goes hidden.
     private var retryTask: Task<Void, Never>?
     private let context: () -> PinContext
+    /// Tells the user about a problem that does not end the pin.
+    private let report: (PinFailure) -> Void
     /// Asks the manager to end this pin. A pin never ends itself.
     private let onEnd: (EndReason) -> Void
 
     init(target: TargetWindow, title: String, capture: WindowCapture, context: @escaping () -> PinContext,
-         onEnd: @escaping (EndReason) -> Void) {
+         report: @escaping (PinFailure) -> Void, onEnd: @escaping (EndReason) -> Void) {
         self.target = target
         self.title = title
         self.capture = capture
         self.context = context
+        self.report = report
         self.onEnd = onEnd
         super.init()
         mirror.delegate = self
@@ -39,7 +44,7 @@ final class Pin: NSObject, NSWindowDelegate {
             self.mirror.display(surface)
         }
         capture.onStopped = { [weak self] in self?.send(.stopped) }
-        mirror.onClick = { [weak self] point in self?.clicked(at: point) }
+        mirror.onMouse = { [weak self] event in self?.mouse(event) }
         target.onFrameChanged = { [weak self] frame in self?.frameChanged(frame) }
         target.onFocusChanged = { [weak self] in self?.evaluate() }
         target.onGone = { [weak self] in self?.onEnd(.windowGone) }
@@ -68,7 +73,9 @@ final class Pin: NSObject, NSWindowDelegate {
         let realWindowInFront = context.frontmostPID == target.pid && target.isFocusedInApp
         let onActiveDesktop = placement.isOnActiveDesktop(windowOnScreen: { target.isOnScreen },
                                                           mirrorOnActiveSpace: { mirror.isOnActiveSpace })
-        send(MirrorVisibility.wanted(realWindowInFront: realWindowInFront, onActiveDesktop: onActiveDesktop) ? .show : .hide)
+        let wanted = MirrorVisibility.wanted(realWindowInFront: realWindowInFront, onActiveDesktop: onActiveDesktop,
+                                             recordingClick: forwarder?.isRecording ?? false)
+        send(wanted ? .show : .hide)
     }
 
     /// The one place the stream state changes. Mirror alpha and click-through follow
@@ -139,9 +146,11 @@ final class Pin: NSObject, NSWindowDelegate {
         enqueue { [capture] in await capture.resize(pointSize: size, scale: scale) }
     }
 
-    /// Stream stopped, mirror ordered out, observers removed. Idempotent. Called only by
-    /// PinManager, the one place a pin ends.
+    /// Click dropped, stream stopped, mirror ordered out, observers removed. Idempotent. Called
+    /// only by PinManager, the one place a pin ends.
     func end() {
+        forwarder?.cancel()
+        forwarder = nil
         send(.hide)
         mirror.orderOut(nil)
         placement = .notPlaced
@@ -159,24 +168,36 @@ final class Pin: NSObject, NSWindowDelegate {
         }
     }
 
-    /// A click on the mirror: activate the real window, drop the mirror, then replay the
-    /// click at the same screen point so it lands in the real window.
-    private func clicked(at point: CGPoint) {
-        let cgPoint = Geometry.cgPoint(fromAppKit: point)
-        Log.mirror.info("click at \(cgPoint.debugDescription), forwarding")
-        send(.hide)
-        target.raise()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
-            Self.postClick(at: cgPoint)
+    /// Every mouse button event on the mirror. The first down raises the real window; the
+    /// gesture is recorded until every button is up, then delivered once the window's app is
+    /// frontmost and the window is the top one at the point, which also means the mirror has
+    /// cleared it.
+    private func mouse(_ event: NSEvent) {
+        guard let cgEvent = event.cgEvent else { return }
+        if forwarder == nil {
+            guard [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(cgEvent.type) else { return }
+            forwarder = ClickForwarder(point: cgEvent.location)
+            Log.mirror.info("click at \(cgEvent.location.debugDescription), forwarding")
+            target.raise()
         }
-    }
-
-    private static func postClick(at point: CGPoint) {
-        guard let down = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: point, mouseButton: .left),
-              let up = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: point, mouseButton: .left)
-        else { return }
-        down.post(tap: .cghidEventTap)
-        up.post(tap: .cghidEventTap)
+        guard let forwarder, !forwarder.isComplete else { return }
+        forwarder.record(cgEvent)
+        guard forwarder.isComplete else { return }
+        // The last button is up: the mirror may hide now and clear the point.
+        evaluate()
+        Task { [weak self] in
+            guard let self else { return }
+            let delivered = await forwarder.deliver(when: {
+                context().frontmostPID == target.pid && WindowList.topWindow(at: forwarder.point) == target.windowID
+            })
+            guard self.forwarder === forwarder else { return }
+            self.forwarder = nil
+            if !delivered {
+                Log.mirror.info("click dropped: the window did not come to the front")
+                report(.clickNotDelivered(title: title))
+            }
+            evaluate()
+        }
     }
 
     private func enqueue(_ work: @escaping @MainActor () async -> Void) {

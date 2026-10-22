@@ -35,6 +35,8 @@ TARGET_FRAME = (160, 140, 640, 420)
 TARGET_B_FRAME = (240, 220, 560, 360)
 COVER_FRAME = (100, 100, 900, 560)
 FLOATING_LAYER = 3  # NSWindow.Level.floating: ontop's mirrors and nothing else of ontop's
+CONTEXT_MENU_LAYER = 101  # NSWindow.Level.popUpMenu
+ESCAPE = 53  # kVK_Escape
 
 
 class Abort(Exception):
@@ -438,7 +440,82 @@ def f_click_through(run, t):
               f"offset {before['location']} -> {after['location']}, line {line}; the click was about line 5")
     m = run.mirror()
     run.check(F, "mirror hidden after the click", run.hidden(m), m and f"alpha {m['alpha']}")
+
+    line_len = len(target_line(t["title"].removesuffix(".txt"), 0))
+    caret = after
+
+    # A shift-click extends the selection from the insertion point to the clicked line.
+    m = show_mirror_again(run, F)
+    if m:
+        rec = probe("click", m["bounds"][0] + 120, m["bounds"][1] + 250, "--flags", "shift")
+        run.step(F, "shift-click mirror", **rec)
+        sel = wait_selection(run, F, t, lambda c: c["length"] > 0)
+        end_line = (sel["location"] + sel["length"]) // line_len
+        run.check(F, "a shift-click extends the selection from the insertion point to the clicked line",
+                  sel["location"] == caret["location"] and end_line >= caret["location"] // line_len + 4,
+                  f"selection {sel['location']}+{sel['length']}, from line {sel['location'] // line_len} to {end_line}; "
+                  f"the click was 100 pt below the first one")
+
+    # A double-click selects the word under the point.
+    m = show_mirror_again(run, F)
+    if m:
+        rec = probe("click", m["bounds"][0] + 150, m["bounds"][1] + 150, "--count", 2)
+        run.step(F, "double-click mirror", **rec)
+        sel = wait_selection(run, F, t, lambda c: c["length"] > 0 and c["location"] // line_len <= 7)
+        text = target_line(t["title"].removesuffix(".txt"), sel["location"] // line_len)
+        col = sel["location"] % line_len
+        word = text[col:col + sel["length"]]
+        whole = word.isalpha() and (col == 0 or not text[col - 1].isalpha()) and not text[col + len(word)].isalpha()
+        run.check(F, "a double-click selects the clicked word", whole and 3 <= sel["location"] // line_len <= 7,
+                  f"selected {word!r} on line {sel['location'] // line_len}")
+
+    # A right-click opens the window's context menu at the point.
+    m = show_mirror_again(run, F)
+    if m:
+        def context_menus():
+            return [w for w in probe("windows", "--pid", t["pid"]) if w["layer"] == CONTEXT_MENU_LAYER]
+        x, y = m["bounds"][0] + 150, m["bounds"][1] + 200
+        rec = probe("click", x, y, "--right")
+        run.step(F, "right-click mirror", **rec)
+        menus = wait_until(context_menus, 3)
+        run.step(F, "context menus", menus=menus)
+        run.check(F, "a right-click opens the window's context menu at the point",
+                  menus and abs(menus[0]["bounds"][0] - x) < 40,
+                  menus and f"menu at {menus[0]['bounds']}, click at {[x, y]}")
+        probe("key", ESCAPE)
+        run.check(F, "Escape closes the context menu", wait_until(lambda: not context_menus(), 3))
+
+    # A drag selects the dragged lines once the button is released.
+    m = show_mirror_again(run, F)
+    if m:
+        x, y = m["bounds"][0], m["bounds"][1]
+        rec = probe("drag", x + 40, y + 150, x + 300, y + 250)
+        run.step(F, "drag on mirror", **rec)
+        run.check(F, "the drag started on the mirror", rec["topWindowBeforeDrag"].get("id") == m["id"])
+        sel = wait_selection(run, F, t, lambda c: c["length"] > line_len)
+        start_line, end_line = sel["location"] // line_len, (sel["location"] + sel["length"]) // line_len
+        run.check(F, "a drag selects the dragged lines",
+                  start_line == caret["location"] // line_len and end_line >= start_line + 4,
+                  f"selection {sel['location']}+{sel['length']}, lines {start_line} to {end_line}; "
+                  f"the drag ran from the first click's line to 100 pt below it")
     run.unpin_all(F)
+
+
+def show_mirror_again(run, F):
+    """The cover in front, so the pinned target's mirror shows again with a frame."""
+    run.raise_cover(F)
+    m = wait_until(lambda: (lambda x: x if run.shown(x) else None)(run.mirror()), 3)
+    if run.check(F, "mirror shown over the cover again", m):
+        time.sleep(0.5)
+    return m
+
+
+def wait_selection(run, F, t, done):
+    """The target's selection once `done` holds for it, or after 3 s."""
+    sel = wait_until(lambda: (lambda c: c if done(c) else None)(probe("ax-caret", t["pid"], t["title"])), 3) \
+        or probe("ax-caret", t["pid"], t["title"])
+    run.step(F, "selection", **sel)
+    return sel
 
 
 def f_double_press(run, t):
