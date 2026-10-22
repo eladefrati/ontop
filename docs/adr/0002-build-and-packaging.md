@@ -30,12 +30,20 @@ signature loses both grants on every rebuild.
    renewed certificate and the one it replaces do. Falls back to ad-hoc signing with a
    printed warning when none is found.
 4. **No sandbox, no restricted entitlements**, so no provisioning profile is needed.
+5. **A Swift Testing target, `ontopTests`,** imports the executable target directly and
+   covers the pure decisions behind pins, the menu and the shortcut. `make test` runs it,
+   and CI runs `swift build` and `swift test` on a `macos-26` runner. Swift Testing ships
+   with the command line tools, where XCTest does not, so the tests need no full Xcode. A
+   separate library target would mean an access-control pass over every file for a handful
+   of pure seams.
 
 ## Consequences
 
 - Rebuilds keep their permission grants once a certificate is installed.
 - Building needs only Xcode's command line tools and SDK. Creating the free certificate
   needs full Xcode, once.
+- The tests don't reach anything that needs a permission, Accessibility or ScreenCaptureKit.
+  That behaviour is proven in the running app with `.claude/skills/verify-ontop`.
 - Notarization and distribution are out of scope. Adding them later means a Developer ID
   certificate and a notarization step in the Makefile, not a change of build system.
 
