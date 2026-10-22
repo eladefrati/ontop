@@ -6,7 +6,7 @@ real window is what the user sees.
 
 ## Sub-features
 
-- `mirror-hidden-front` hidden while the pinned window is its app's focused window and the app is frontmost.
+- `mirror-hidden-front` hidden while the pinned window, or a sheet on it, is its app's focused window and the app is frontmost (sheets: see sheet-click).
 - `mirror-shown-other` shown, with the window's content, while another app is frontmost.
 - `mirror-hidden-again` hidden again once the pinned window returns to the front.
 

@@ -19,12 +19,14 @@ final class TargetWindow {
     var onFocusChanged: (() -> Void)?
     var onGone: (() -> Void)?
 
-    /// True when this window is the one its app would show in front: its focused window.
+    /// True when this window is the one its app would show in front: its focused window, or
+    /// the window of a focused sheet, which its app reports as the focused window instead.
     var isFocusedInApp: Bool {
         guard let focused = AX.value(appElement, kAXFocusedWindowAttribute),
               CFGetTypeID(focused) == AXUIElementGetTypeID()
         else { return false }
-        return CFEqual(focused, element)
+        if CFEqual(focused, element) { return true }
+        return AX.value(focused as! AXUIElement, kAXParentAttribute).map { CFEqual($0, element) } ?? false
     }
 
     /// Finds the window among its app's standard Accessibility windows by WindowMatch, the
