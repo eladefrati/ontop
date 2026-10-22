@@ -6,7 +6,7 @@ date: 2026-10-16
 
 # ADR-0001: Mirror overlay
 
-**Status:** Accepted
+**Status:** Accepted. Decision 1 amended by [ADR-0003](0003-mirrors-stay-on-their-desktop.md).
 
 ## Context
 
