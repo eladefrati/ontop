@@ -320,7 +320,7 @@ final class CoverDelegate: NSObject, NSApplicationDelegate {
 
 var args = Array(CommandLine.arguments.dropFirst())
 guard let command = args.first else {
-    fail("usage: probe <windows|front|activate|hotkey|key|space|desktops|menu|click|drag|ax-windows|ax-place|ax-raise|ax-close|ax-caret|cover|trusted> ...")
+    fail("usage: probe <windows|front|activate|hotkey|key|space|desktops|menu|click|drag|ax-windows|ax-place|ax-raise|ax-close|ax-caret|ax-sheet|opaque|quit|cover|trusted> ...")
 }
 args.removeFirst()
 
