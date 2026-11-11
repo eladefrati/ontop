@@ -576,10 +576,10 @@ def sheet_click(run, F, t, key, flags):
 
 
 def f_double_press(run, t):
-    F = "double-press"
     # 40 to 150 ms covers a person's quick double press. 0 ms is a stress case faster than any
     # person, kept because it lands inside the pin's async round trip to ScreenCaptureKit.
     for gap in (0, 40, 80, 150):
+        F = "double-press" if gap else "double-press-stress"
         run.unpin_all(F)
         run.raise_target(F, t)
         pinned = run.log_count(rf"pinned .*\({t['id']}\)")
@@ -593,7 +593,6 @@ def f_double_press(run, t):
         ms = run.my_mirrors()
         run.step(F, "after double press", gap_ms=gap, presses=k, pinned_logs=p, unpinned_logs=u, mirrors=ms)
         item = run.menu_state(F, t["title"])
-        F = "double-press" if gap else "double-press-stress"
         run.check(F, f"{gap} ms gap: ontop received both presses", k == 2, f"{k} logged")
         run.check(F, f"{gap} ms gap: menu shows the window unpinned", item and not item["checked"],
                   item and f"checked {item['checked']}")
