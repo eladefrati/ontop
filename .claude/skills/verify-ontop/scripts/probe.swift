@@ -73,10 +73,10 @@ func windowList(all: Bool) -> [[String: Any]] {
     return (CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]]) ?? []
 }
 
-func windowJSON(_ info: [String: Any]) -> [String: Any] {
+/// `all` is `desktops().all`, read once by the caller for every window it reports.
+func windowJSON(_ info: [String: Any], desktops all: [Desktop]) -> [String: Any] {
     let b = info[kCGWindowBounds as String] as? [String: CGFloat] ?? [:]
     let wid = info[kCGWindowNumber as String] as? CGWindowID ?? 0
-    let (all, _) = desktops()
     let spaces = spacesOf(wid)
     return [
         "id": wid,
@@ -221,7 +221,7 @@ func topWindow(at point: CGPoint) -> [String: Any] {
               let b = info[kCGWindowBounds as String] as? [String: CGFloat] else { return false }
         return CGRect(x: b["X"]!, y: b["Y"]!, width: b["Width"]!, height: b["Height"]!).contains(point)
     }
-    return top.map(windowJSON) ?? [:]
+    return top.map { windowJSON($0, desktops: desktops().all) } ?? [:]
 }
 
 // MARK: Menu (ontop's status item, through Accessibility)
@@ -352,7 +352,8 @@ case "windows":
         (pid == nil || info[kCGWindowOwnerPID as String] as? Int == pid)
             && (owner == nil || info[kCGWindowOwnerName as String] as? String == owner)
     }
-    emit(rows.map(windowJSON))
+    let all = desktops().all
+    emit(rows.map { windowJSON($0, desktops: all) })
 
 case "front":
     let app = NSWorkspace.shared.frontmostApplication
