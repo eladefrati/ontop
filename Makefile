@@ -33,7 +33,7 @@ app: build $(ICON)
 	  echo "warning: no Apple Development identity found; signing ad hoc, permission grants will reset on every rebuild" >&2; \
 	  codesign --force --sign - $(APPDIR); \
 	fi
-	@codesign -dv $(APPDIR) 2>&1 | grep -E '^(Authority|TeamIdentifier)' || true
+	@codesign -dvv $(APPDIR) 2>&1 | grep -E '^(Authority|TeamIdentifier)' || true
 
 # Quits a running ontop first (copying over a running bundle leaves the old code running),
 # and opens the installed copy again if one was running.
