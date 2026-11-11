@@ -9,9 +9,6 @@ struct KeyChord: Codable, Equatable {
     /// NSEvent.ModifierFlags raw value: Control, Option, Shift and Command only.
     var modifiers: UInt
 
-    // Chords saved before also carry "keyEquivalent" and "display". The synthesized decoder
-    // ignores keys it doesn't know, so they still load.
-
     init(keyCode: UInt32, modifiers: NSEvent.ModifierFlags) {
         self.keyCode = keyCode
         self.modifiers = modifiers.intersection([.control, .option, .shift, .command]).rawValue

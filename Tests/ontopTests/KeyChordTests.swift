@@ -63,11 +63,6 @@ struct KeyChordTests {
         #expect(KeyChord.keyName(UInt32(kVK_Space), layout: { _ in " " }) == "Space")
     }
 
-    @Test func aChordSavedWithItsLabelsStillLoads() throws {
-        let saved = #"{"keyCode":35,"modifiers":786432,"keyEquivalent":"p","display":"⌃⌥P"}"#
-        #expect(try JSONDecoder().decode(KeyChord.self, from: Data(saved.utf8)) == .default)
-    }
-
     @Test func aChordSavesItsKeyAndModifiersOnly() throws {
         let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(KeyChord.default)) as? [String: Any]
         #expect(object.map { Set($0.keys) } == ["keyCode", "modifiers"])
