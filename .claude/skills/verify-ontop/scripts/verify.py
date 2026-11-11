@@ -33,7 +33,6 @@ FEATURES = ["launch-quit", "pin-hotkey", "pin-menu", "mirror-visibility", "click
 # Where the throwaway windows go, in global top-left coordinates on the main display.
 TARGET_FRAME = (160, 140, 640, 420)
 TARGET_B_FRAME = (240, 220, 560, 360)
-SHEET_TARGET_FRAME = (160, 140, 960, 640)
 COVER_FRAME = (100, 100, 900, 560)
 FLOATING_LAYER = 3  # NSWindow.Level.floating: ontop's mirrors and nothing else of ontop's
 CONTEXT_MENU_LAYER = 101  # NSWindow.Level.popUpMenu
@@ -532,14 +531,10 @@ def wait_selection(run, F, t, done):
 
 def f_sheet_click(run, t):
     F = "sheet-click"
-    # Both sheets are wider than the baseline target; a sheet wider than its window is scaled
-    # into the mirror, so the target grows until each sheet fits inside it.
-    probe("ax-place", t["pid"], t["title"], *SHEET_TARGET_FRAME)
-    try:
-        for name, key, flags in SHEETS:
-            sheet_click(run, f"{F} {name}", t, key, flags)
-    finally:
-        probe("ax-place", t["pid"], t["title"], *TARGET_FRAME)
+    # Both sheets are wider than the target, so the mirror has to cover more than the window
+    # for a click on it to land on the sheet's button.
+    for name, key, flags in SHEETS:
+        sheet_click(run, f"{F} {name}", t, key, flags)
 
 
 def sheet_click(run, F, t, key, flags):
