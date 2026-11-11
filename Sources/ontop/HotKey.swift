@@ -17,7 +17,7 @@ final class HotKey {
 
     private enum State {
         case registered(EventHotKeyRef)
-        case failed(RegistrationError)
+        case failed
     }
 
     private var state: State
@@ -36,7 +36,7 @@ final class HotKey {
         case .success(let ref):
             state = .registered(ref)
         case .failure(let error):
-            state = .failed(error)
+            state = .failed
             Log.app.error("hotkey \(self.chord.display) unavailable: \(String(describing: error))")
         }
         let callback: EventHandlerUPP = { _, _, refcon in
