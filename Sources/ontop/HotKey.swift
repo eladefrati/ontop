@@ -9,7 +9,6 @@ final class HotKey {
     private static let signature: OSType = 0x6F6E7470 // "ontp"
 
     enum RegistrationError: Error {
-        case inUse
         case failed(OSStatus)
     }
 
@@ -78,8 +77,6 @@ final class HotKey {
             guard let ref else { return .failure(.failed(status)) }
             Log.app.info("hotkey registered: \(chord.display)")
             return .success(ref)
-        case OSStatus(eventHotKeyExistsErr):
-            return .failure(.inUse)
         default:
             return .failure(.failed(status))
         }

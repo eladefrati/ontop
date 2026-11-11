@@ -228,8 +228,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             guard let chord else { return }
             do {
                 try hotKey.change(to: chord)
-            } catch HotKey.RegistrationError.inUse {
-                Self.alert("Shortcut in use", "\(chord.display) is already taken by another app. The shortcut stays \(hotKey.chord.display).")
             } catch {
                 Self.alert("Could not set shortcut", String(describing: error))
             }
