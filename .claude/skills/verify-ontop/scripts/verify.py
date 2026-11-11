@@ -25,8 +25,6 @@ SKILL = Path(__file__).resolve().parent.parent
 REPO = SKILL.parents[2]
 PROBE = SKILL / "scripts" / "probe"
 APP = REPO / "build" / "ontop.app"
-APP_BIN = APP / "Contents" / "MacOS" / "ontop"
-INSTALLED = Path("/Applications/ontop.app")
 RUNS = REPO / "build" / "verify" / "runs"
 BUNDLE = "io.github.eladefrati.ontop"
 FEATURES = ["launch-quit", "pin-hotkey", "pin-menu", "mirror-visibility", "click-through", "sheet-click", "double-press",
@@ -153,7 +151,6 @@ def doctor(quiet=False):
 
 class Run:
     def __init__(self, keep=False):
-        self.keep = keep
         self.dir = RUNS / datetime.now().strftime("%Y-%m-%dT%H%M%S")
         self.dir.mkdir(parents=True)
         self.state = {"keep": keep}
