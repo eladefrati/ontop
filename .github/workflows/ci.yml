@@ -10,5 +10,4 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v5
-      - run: swift build
       - run: swift test

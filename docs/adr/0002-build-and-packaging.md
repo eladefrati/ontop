@@ -32,10 +32,10 @@ signature loses both grants on every rebuild.
 4. **No sandbox, no restricted entitlements**, so no provisioning profile is needed.
 5. **A Swift Testing target, `ontopTests`,** imports the executable target directly and
    covers the pure decisions behind pins, the menu and the shortcut. `make test` runs it,
-   and CI runs `swift build` and `swift test` on a `macos-26` runner. Swift Testing ships
-   with the command line tools, where XCTest does not, so the tests need no full Xcode. A
-   separate library target would mean an access-control pass over every file for a handful
-   of pure seams.
+   and CI runs `swift test`, which builds the app first, on a `macos-26` runner. Swift
+   Testing ships with the command line tools, where XCTest does not, so the tests need no
+   full Xcode. A separate library target would mean an access-control pass over every file
+   for a handful of pure seams.
 
 ## Consequences
 
