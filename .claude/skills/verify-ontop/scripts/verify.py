@@ -423,7 +423,7 @@ def f_click_through(run, t):
     before = probe("ax-caret", t["pid"], t["title"])
     run.step(F, "caret before", **before)
     run.capture(F, m["id"], "mirror-before-click")
-    # A point in the text, well below the title bar: about line 8 of the document.
+    # A point in the text, well below the title bar: about line 5 of the document.
     x, y = m["bounds"][0] + 120, m["bounds"][1] + 150
     clicks = run.log_count(r"click at .*forwarding")
     rec = probe("click", x, y)

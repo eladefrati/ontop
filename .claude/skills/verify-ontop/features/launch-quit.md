@@ -24,7 +24,7 @@ Preconditions:
 
 - **Launch.** `make app`, then `open build/ontop.app`. Ready: the new pid logs `hotkey registered: <private>` within 10 s.
 - **Open the menu.** `probe menu list <pid>`. Items include `Pin Frontmost Window` and `Quit ontop`.
-- **Version.** The disabled item `ontop 2026.10.20.1` matches `CFBundleShortVersionString` in `build/ontop.app/Contents/Info.plist`.
+- **Version.** The disabled item `ontop <version>` matches `CFBundleShortVersionString` in `build/ontop.app/Contents/Info.plist`.
 - **Quit.** `probe menu click <pid> "Quit ontop"`. The pid is gone within 5 s.
 - **Relaunch.** `open build/ontop.app` again reaches ready; the other journeys run on it.
 
