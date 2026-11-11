@@ -10,7 +10,7 @@ date: 2026-10-21
 
 ## Context
 
-ontop needs Accessibility and Screen Recording (ADR-0001). The [proposal](../proposal.md)
+ontop needs Accessibility and Screen Recording (ADR-0001). The original design
 had ontop show one alert per missing permission that explains why and opens its Privacy &
 Security pane. The request that adds ontop to the Accessibility list also shows macOS's own
 prompt, so the user saw two dialogs per permission.
@@ -54,7 +54,7 @@ process.
 
 ## Alternatives considered
 
-- **ontop's own alert per permission (the proposal):** two dialogs for one permission, and
+- **ontop's own alert per permission (the original design):** two dialogs for one permission, and
   the alert adds nothing the menu can't say.
 - **Detect the Screen Recording grant and relaunch automatically:** polling
   `CGPreflightScreenCaptureAccess` never sees the grant. Polling ScreenCaptureKit sees it,

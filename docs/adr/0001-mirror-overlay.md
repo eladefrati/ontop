@@ -10,7 +10,7 @@ date: 2026-10-16
 
 ## Context
 
-The goal is to keep any window of any app above all others ([proposal](../proposal.md)).
+The goal is to keep any window of any app above all others ([PRD](../PRD.md)).
 macOS has no public API to change another process's window level. The Accessibility API can
 move, resize and raise foreign windows but not set their level. Code injection is blocked by
 SIP and the hardened runtime. Private SkyLight calls work only from a process injected into

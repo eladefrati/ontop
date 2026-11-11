@@ -10,7 +10,7 @@ date: 2026-10-20
 
 ## Context
 
-The [proposal](../proposal.md) set the mirror window's sharing type to none, so that ontop
+The original design set the mirror window's sharing type to none, so that ontop
 would never capture its own mirrors. That setting hides the mirror from every capture
 client, not only from ontop: screenshots, screen recordings and screen sharing in video
 calls all show the screen as if nothing were pinned. What the user sees and what they

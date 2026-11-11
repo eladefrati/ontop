@@ -8,9 +8,9 @@ you unpin it.
 
 macOS gives no public way to raise another app's window level. So while another app is in
 front, ontop shows a live mirror of the pinned window in a floating window of its own, and
-hides the mirror when the pinned window comes to the front. The [proposal](docs/proposal.md)
-is the original design, and the code has moved away from it in places. The
-[ADRs](docs/adr/README.md) record the decisions in force.
+hides the mirror when the pinned window comes to the front. The [PRD](docs/PRD.md) says what
+ontop is for and how it behaves. The [ADRs](docs/adr/README.md) record the decisions behind
+it.
 
 ontop makes no network connections.
 

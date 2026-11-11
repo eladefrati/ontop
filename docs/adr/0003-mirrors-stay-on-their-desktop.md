@@ -10,7 +10,7 @@ date: 2026-10-16
 
 ## Context
 
-The [proposal](../proposal.md) put mirrors on every desktop (Space) and over full-screen
+The original design put mirrors on every desktop (Space) and over full-screen
 apps, so a pinned window followed the user everywhere. In use, that is not always wanted: a
 window pinned on one desktop can be meant for that desktop only. The real window cannot be
 moved by ontop, and macOS offers no public way to place a window on a chosen desktop; a

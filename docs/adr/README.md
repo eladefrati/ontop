@@ -1,8 +1,7 @@
 # Architecture decision records
 
 Each ADR records one decision, the constraints behind it, and what it costs. The
-[proposal](../proposal.md) is the original design. Where the proposal disagrees with the
-ADRs or the code, the ADRs and the code are current.
+[PRD](../PRD.md) describes ontop as these decisions leave it.
 
 | ADR | Decision | Status |
 | --- | --- | --- |
