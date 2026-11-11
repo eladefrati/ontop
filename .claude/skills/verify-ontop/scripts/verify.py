@@ -101,6 +101,16 @@ def pid_of(name):
     return int(pids[0]) if pids else None
 
 
+def go_to_desktop(n):
+    """Switches one desktop at a time until desktop n is active. Returns the active desktop."""
+    for _ in range(10):
+        cur = probe("desktops")["active"]["desktop"]
+        if cur == n:
+            break
+        probe("space", "left" if cur > n else "right")
+    return probe("desktops")["active"]["desktop"]
+
+
 # ---------------------------------------------------------------- doctor
 
 def doctor(quiet=False):
@@ -805,6 +815,11 @@ def cleanup(run_dir, run=None):
     te = pid_of("TextEdit")
     for t in state.get("targets", []):
         if te:
+            # Accessibility lists only the windows on the active desktop, so a target is closed
+            # from its own desktop.
+            win = next((w for w in probe("windows", "--pid", te, "--all") if w["name"] == t["title"]), None)
+            if win and win["desktops"]:
+                go_to_desktop(win["desktops"][0]["desktop"])
             try:
                 probe("ax-close", te, t["title"])
                 done.append(f"closed {t['title']}")
@@ -818,12 +833,7 @@ def cleanup(run_dir, run=None):
         probe("quit", te)
         done.append("quit TextEdit (this run launched it)")
     if state.get("desktop_initial"):
-        for _ in range(10):
-            cur = probe("desktops")["active"]["desktop"]
-            if cur == state["desktop_initial"]:
-                break
-            probe("space", "left" if cur > state["desktop_initial"] else "right")
-        done.append(f"back on desktop {probe('desktops')['active']['desktop']}")
+        done.append(f"back on desktop {go_to_desktop(state['desktop_initial'])}")
     if state.get("log_pid"):
         try:
             time.sleep(0.5)

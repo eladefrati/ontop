@@ -39,3 +39,4 @@ Preconditions:
 - Desktops are numbered 1.. in Mission Control order on the main display; the probe reads them with private SkyLight calls (verification only).
 - Raising a window on another desktop makes macOS switch to that desktop. The journey switches first and raises only windows on the active desktop.
 - A sticky (following) window's space list comes back in varying order; compare as sets.
+- Accessibility lists only an app's windows on the active desktop (seen 2026-11-10: TextEdit, 3 of 7 windows). Cleanup switches to target B's desktop before it closes it; closed from home, B stayed open after every run.
