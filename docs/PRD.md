@@ -55,13 +55,15 @@ Each pin's mirror is in one of two states.
 - **Hidden**: the pinned window is what the user sees: its app is frontmost and the window,
   or a sheet on it, is that app's focused window. Also hidden while the mirror's desktop is
   not the active one. The capture stream is stopped.
-- **Shown**: otherwise. The mirror is placed at the pinned window's current frame and the
-  stream runs; the mirror becomes visible with the first frame.
+- **Shown**: otherwise. The mirror is placed over the pinned window and its sheets, a sheet
+  wider than the window included, and the stream runs; the mirror becomes visible with the
+  first frame.
 
 Transitions come from `NSWorkspace` app activation and active-desktop notifications and from
 Accessibility observers on the pinned window: focused window changed, moved, resized,
-minimized, destroyed. On move and resize the mirror follows, reading the frame from the
-window's Accessibility position and size attributes.
+minimized, destroyed. On move and resize, and when a sheet opens or closes, the mirror
+follows, reading the frames from the window's and its sheets' Accessibility position and size
+attributes.
 
 A stream that fails to start, or stops, is started again after 0.5, 1 and 1.5 s. The fourth
 failure in a row ends the pin.
@@ -82,7 +84,8 @@ release. Scroll events are not forwarded
 A borderless `NSWindow` at floating level that never takes focus. By default it lives on its
 window's desktop; with Follow Across Desktops its collection behavior joins all Spaces and is
 auxiliary to full-screen apps. It stays ordered in while hidden, transparent and ignoring
-clicks, so it keeps its desktop (ADR-0003). It keeps the default sharing type, so
+clicks, so it keeps its desktop (ADR-0003). It takes a click only where it shows a pixel, so
+the empty corners beside a sheet wider than its window belong to what is underneath. It keeps the default sharing type, so
 screenshots, recordings and screen sharing show mirrors as the screen does
 ([ADR-0004](adr/0004-mirrors-are-visible-to-screen-capture.md)). The content view's layer
 takes each captured frame's `IOSurface` directly, with no copy. The stream leaves out the
@@ -151,8 +154,6 @@ permission is proven in the running app with `.claude/skills/verify-ontop` (ADR-
 - **Windows that refuse capture** cannot be pinned. Accepted.
 - **A pinned window moved to another desktop** in Mission Control leaves its mirror behind;
   unpin and pin again there (ADR-0003).
-- **A sheet wider than its window** is scaled into the mirror with the window, so a click on
-  the sheet in the mirror lands elsewhere on the real sheet (ADR-0006).
 - **A shortcut another app also uses** fires in both apps; ontop cannot tell.
 
 ## Stack

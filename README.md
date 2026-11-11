@@ -72,9 +72,8 @@ macOS asks you to confirm Screen Recording access again about once a month.
   delivering the previous one. If the mirror has hidden by your second click, that click goes
   straight to the real window and the double-click registers. Otherwise ontop delivers only
   the first click.
-- When a sheet is wider than its window, the mirror shrinks the window and the sheet together
-  to the window's width. A click on the sheet in the mirror then lands at a different place
-  on the real sheet.
+- When a sheet is wider than its window, the mirror grows to cover both, so a click on the
+  sheet in the mirror lands on the same spot of the real sheet.
 - With several windows pinned, the one you are working in is an ordinary window, so the
   other pins stay above it. Avoid overlapping two pins.
 - A pinned window stays on the desktop it was pinned on. Turn on **Follow Across Desktops**

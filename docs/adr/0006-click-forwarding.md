@@ -47,10 +47,11 @@ sheet, not the pinned window.
 - ontop delivers one gesture at a time and ignores a click on the mirror while it delivers
   the previous one. A double-click registers only if the mirror has hidden before the
   second click, which then goes straight to the real window.
-- When a sheet is wider than its window, the mirror shrinks the window and the sheet
-  together to the window's width (measured 2026-10-22: TextEdit's Save As sheet, 880 pt
-  wide on a 640 pt window, at 73 %). A click on the sheet in the mirror lands at a
-  different place on the real sheet.
+- The replay is at the screen point of the press, so the mirror has to show each pixel
+  where the real one is. It covers the window and its sheets, a sheet wider than its window
+  included. Until 2026-11-10 such a sheet was scaled into the window's frame (measured
+  2026-10-22: TextEdit's Save As sheet, 880 pt wide on a 640 pt window, at 73 %), and a
+  click on it in the mirror landed at a different place on the real sheet.
 - Delivery reads the window list once per frame, for at most 1 s per click.
 
 ## Alternatives considered
