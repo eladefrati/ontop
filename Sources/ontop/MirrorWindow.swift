@@ -2,6 +2,11 @@ import AppKit
 import IOSurface
 
 /// The floating window that shows the captured frames over the real window's position.
+///
+/// `ignoresMouseEvents` is never set. Left alone, macOS gives the mirror a click only where it
+/// shows a pixel, so a hidden mirror, and the empty corners of one that covers a sheet wider
+/// than its window, pass the click to whatever is underneath. Setting it, even to false, makes
+/// the whole rectangle take clicks (measured 2026-11-10).
 final class MirrorWindow: NSWindow {
     /// Every mouse button event on the mirror: downs, drags and ups of any button.
     var onMouse: ((NSEvent) -> Void)?
@@ -10,7 +15,6 @@ final class MirrorWindow: NSWindow {
         super.init(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
         level = .floating
         alphaValue = 0
-        ignoresMouseEvents = true
         isOpaque = false
         backgroundColor = .clear
         hasShadow = false
@@ -46,7 +50,6 @@ final class MirrorWindow: NSWindow {
     /// The window stays ordered in so it keeps its desktop; visibility is alpha.
     func setVisible(_ visible: Bool) {
         alphaValue = visible ? 1 : 0
-        ignoresMouseEvents = !visible
     }
 
     func display(_ surface: IOSurface) {

@@ -15,7 +15,7 @@ final class TargetWindow {
     /// callback can never reach a freed target.
     private var refcon: Unmanaged<TargetWindow>?
 
-    var onFrameChanged: ((CGRect) -> Void)?
+    var onFrameChanged: (() -> Void)?
     var onFocusChanged: (() -> Void)?
     var onGone: (() -> Void)?
 
@@ -27,6 +27,16 @@ final class TargetWindow {
         else { return false }
         if CFEqual(focused, element) { return true }
         return AX.value(focused as! AXUIElement, kAXParentAttribute).map { CFEqual($0, element) } ?? false
+    }
+
+    /// The window's frame grown to cover its sheets. A sheet can be wider than its window, and
+    /// the capture includes it, so a mirror that is point for point over the real pixels has
+    /// to cover both.
+    var contentFrame: CGRect {
+        (AX.elements(element, kAXChildrenAttribute) ?? []).reduce(frame) { union, child in
+            guard AX.string(of: child, kAXRoleAttribute) == kAXSheetRole, let sheet = AX.frame(of: child) else { return union }
+            return union.union(sheet)
+        }
     }
 
     /// Finds the window among its app's standard Accessibility windows by WindowMatch, the
@@ -113,7 +123,7 @@ final class TargetWindow {
         case kAXMovedNotification, kAXResizedNotification:
             guard let frame = AX.frame(of: element) else { return }
             self.frame = frame
-            onFrameChanged?(frame)
+            onFrameChanged?()
         case kAXFocusedWindowChangedNotification:
             onFocusChanged?()
         case kAXWindowMiniaturizedNotification, kAXUIElementDestroyedNotification:

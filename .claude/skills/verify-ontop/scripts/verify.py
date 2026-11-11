@@ -561,6 +561,17 @@ def sheet_click(run, F, t, key, flags):
         run.capture(F, m["id"], "mirror-with-sheet")
         s = sheet()
         run.step(F, "sheet", sheet=s)
+        # Where the sheet is wider than the target, the mirror has an empty corner beside the
+        # target and above the sheet. A click there belongs to the cover underneath.
+        cx, cy = min(s["frame"][0] + s["frame"][2], COVER_FRAME[0] + COVER_FRAME[2]) - 20, t["bounds"][1] + 20
+        if cx > t["bounds"][0] + t["bounds"][2] and cy < s["frame"][1]:
+            clicks = run.log_count(r"click at .*forwarding")
+            rec = probe("click", cx, cy)
+            run.step(F, "click the mirror's empty corner", **rec)
+            run.check(F, "the corner is inside the mirror", rec["topWindowBeforeClick"].get("id") == m["id"])
+            run.check(F, "a click on the mirror's empty corner is not forwarded",
+                      not run.wait_log(r"click at .*forwarding", clicks + 1, timeout=1.5) and run.front() == run.cover["pid"],
+                      f"front app {run.front()}, cover {run.cover['pid']}")
         cancel = next(b for b in s["buttons"] if b["title"] == "Cancel")
         x, y = cancel["frame"][0] + cancel["frame"][2] / 2, cancel["frame"][1] + cancel["frame"][3] / 2
         dropped = run.log_count(r"click dropped")

@@ -44,8 +44,9 @@ final class Pin: NSObject, NSWindowDelegate {
             self.mirror.display(surface)
         }
         capture.onStopped = { [weak self] in self?.send(.stopped) }
+        capture.onContentSizeChanged = { [weak self] in self?.fitMirror() }
         mirror.onMouse = { [weak self] event in self?.mouse(event) }
-        target.onFrameChanged = { [weak self] frame in self?.frameChanged(frame) }
+        target.onFrameChanged = { [weak self] in self?.fitMirror() }
         target.onFocusChanged = { [weak self] in self?.evaluate() }
         target.onGone = { [weak self] in self?.onEnd(.windowGone) }
     }
@@ -93,7 +94,7 @@ final class Pin: NSObject, NSWindowDelegate {
         }
         switch effect {
         case .show:
-            let frame = Geometry.appKitRect(fromCG: target.frame)
+            let frame = Geometry.appKitRect(fromCG: target.contentFrame)
             mirror.setFrame(frame, display: false)
             mirror.orderFrontRegardless()
             startCapture()
@@ -157,9 +158,11 @@ final class Pin: NSObject, NSWindowDelegate {
         target.invalidate()
     }
 
-    private func frameChanged(_ cgFrame: CGRect) {
+    /// Puts the shown mirror over the window and its sheets, and the stream at that size. Runs
+    /// when the window moves or resizes and when a frame's content changes size.
+    private func fitMirror() {
         guard stream != .hidden else { return }
-        let frame = Geometry.appKitRect(fromCG: cgFrame)
+        let frame = Geometry.appKitRect(fromCG: target.contentFrame)
         let resized = frame.size != mirror.frame.size
         mirror.setFrame(frame, display: true)
         if resized {

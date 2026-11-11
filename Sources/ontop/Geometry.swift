@@ -12,6 +12,15 @@ enum Geometry {
         NSScreen.screens.first?.frame.height ?? 0
     }
 
+    /// The size in points of what a captured frame shows, the window with its child windows,
+    /// from the frame's content rect in the surface and the scale it was drawn at. Measured on
+    /// a 640 x 420 window with an 880 pt wide sheet, in a 640 x 420 stream: a content rect of
+    /// 640 x 375.27 at scale 0.727, which is 880 x 516.
+    static func contentSize(rect: CGRect, scale: CGFloat) -> CGSize {
+        guard scale > 0 else { return rect.size }
+        return CGSize(width: (rect.width / scale).rounded(), height: (rect.height / scale).rounded())
+    }
+
     @MainActor
     static func appKitRect(fromCG rect: CGRect, primaryHeight: CGFloat = Geometry.primaryHeight) -> CGRect {
         CGRect(

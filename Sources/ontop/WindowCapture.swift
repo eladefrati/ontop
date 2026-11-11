@@ -11,7 +11,13 @@ final class WindowCapture: NSObject {
     /// Keeps the surface of the frame currently on screen alive until the next one lands.
     private var lastBuffer: CMSampleBuffer?
 
+    /// The size in points of the content in the last frame, or the size the stream started at.
+    private var contentSize = CGSize.zero
+
     var onFrame: ((IOSurface) -> Void)?
+    /// A frame's content, the window with its child windows, has a new size in points: a
+    /// sheet wider than the window opened or closed.
+    var onContentSizeChanged: (() -> Void)?
     /// The system ended the stream on its own, for example on a display change.
     var onStopped: (() -> Void)?
 
@@ -26,6 +32,7 @@ final class WindowCapture: NSObject {
         try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: .main)
         try await stream.startCapture()
         self.stream = stream
+        contentSize = pointSize
         Log.capture.info("started for window \(self.window.windowID) at \(Int(pointSize.width))x\(Int(pointSize.height))@\(scale)")
     }
 
@@ -75,6 +82,14 @@ final class WindowCapture: NSObject {
         else { return }
         lastBuffer = sampleBuffer
         onFrame?(surface)
+        if let rect = (info[.contentRect] as? NSDictionary).flatMap({ CGRect(dictionaryRepresentation: $0) }),
+           let scale = info[.contentScale] as? CGFloat {
+            let size = Geometry.contentSize(rect: rect, scale: scale)
+            if size != contentSize {
+                contentSize = size
+                onContentSizeChanged?()
+            }
+        }
     }
 }
 
